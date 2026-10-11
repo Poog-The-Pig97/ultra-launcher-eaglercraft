@@ -22,15 +22,22 @@ function formatBytes(bytes) {
 
 function classifyName(name) {
   const lower = name.toLowerCase();
-  if (/(eaglercraft|eaglerforge|eagly|dragonx|zeus|wurstx|infdev|astra|pixel)/.test(lower)) {
+  
+  // Eaglercraft — more comprehensive pattern
+  if (/eaglercraft|eaglerforge|eagly|dragonx|zeus|wurstx|infdev|astra|pixel|resent|gx-client|beta/.test(lower)) {
     return 'Eaglercraft';
   }
-  if (/(^|[\s_-])ac-|absolutecraft/.test(lower)) {
+  
+  // AbsoluteCraft
+  if (/^ac-|absolutecraft/.test(lower)) {
     return 'AbsoluteCraft';
   }
-  if (/(wolfy|minceraft)/.test(lower)) {
+  
+  // WolfyCraft
+  if (/wolfy|minceraft/.test(lower)) {
     return 'WolfyCraft';
   }
+  
   return 'Custom';
 }
 
