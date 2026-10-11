@@ -6,9 +6,9 @@ Ultra launcher for Eaglercraft with version management and advanced features.
 
 This repository also includes a static GitHub Pages launcher UI that auto-discovers `.html` game files from the repo and groups them into categories. The sorting logic intentionally treats all unmatched files as `Custom`, which means the launcher page itself may appear under the custom bucket as a hilarious leftover.
 
-### Joke category title
+### A bug became humor
 
-The `Custom` section currently shows this cheerful explanation when the page itself gets caught in the leftover bucket:
+on October 11, 2026 because the `Custom` section currently shows this cheerful explanation when the page itself gets caught in the leftover bucket:
 
 > "yeah, and this launcher page itself is just another thing you can launch."
 
