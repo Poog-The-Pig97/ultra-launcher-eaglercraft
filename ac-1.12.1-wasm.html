@@ -1,0 +1,905 @@
+<!-- file: index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbsoluteCraft: Mega Voxel Adventure</title>
+    <style>
+        *{box-sizing:border-box}
+        body{margin:0;overflow:hidden;font-family:'Courier New',Courier,monospace;background:#000;color:#fff;user-select:none}
+        #home-screen{position:fixed;top:0;left:0;width:100vw;height:100vh;background:radial-gradient(circle at center,rgba(20,25,45,.8) 0%,rgba(6,8,16,.96) 100%);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:500;backdrop-filter:blur(6px)}
+        .title-box{text-align:center;margin-bottom:20px}
+        .title-box h1{font-size:46px;margin:0;letter-spacing:3px;background:linear-gradient(180deg,#ffe600 0%,#ff8800 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .title-box p{font-size:12px;color:#88bbff;margin:4px 0 0;letter-spacing:2px}
+        .wasm-pill{display:inline-block;background:#654ff0;color:#fff;font-size:11px;padding:3px 10px;border-radius:12px;margin-top:6px;font-weight:bold}
+        .menu-btn-col{display:flex;flex-direction:column;gap:10px;width:260px}
+        .main-btn{background:linear-gradient(180deg,#2b75e2,#1748a0);border:2px solid #77aaff;border-radius:8px;color:#fff;font-family:inherit;font-size:14px;font-weight:bold;padding:12px;cursor:pointer;transition:0.15s;text-align:center}
+        .main-btn:hover{filter:brightness(1.2);transform:translateY(-2px)}
+        .main-btn.gold{background:linear-gradient(180deg,#ffbb00,#cc7a00);border-color:#ffe680;color:#111}
+        #hud{position:absolute;top:12px;left:12px;pointer-events:none;z-index:10;display:flex;flex-direction:column;gap:6px}
+        .hud-card{background:rgba(10,12,22,.85);border:2px solid #556;border-radius:8px;padding:6px 12px}
+        #health-bar{color:#ff3344;font-size:20px;font-weight:bold;letter-spacing:2px}
+        #xp-bar-container{width:160px;height:8px;background:#222;border:1px solid #777;border-radius:4px;overflow:hidden;margin-top:4px}
+        #xp-bar-fill{width:0%;height:100%;background:#33ff66}
+        #radar-container{position:absolute;top:12px;right:12px;z-index:15;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+        #minimap-canvas{width:110px;height:110px;background:rgba(5,5,10,.85);border:2px solid #6b7c96;border-radius:10px}
+        .hud-btn{background:rgba(20,25,40,.85);border:2px solid #6b7c96;border-radius:6px;color:#fff;font-family:inherit;font-size:10px;font-weight:bold;padding:6px 10px;cursor:pointer}
+        .hud-btn:hover{background:#2b75e2}
+        #crosshair{position:absolute;top:50%;left:50%;width:14px;height:14px;transform:translate(-50%,-50%);pointer-events:none;z-index:10}
+        #crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(255,255,255,.85)}
+        #crosshair::before{top:6px;left:0;width:14px;height:2px}
+        #crosshair::after{top:0;left:6px;width:2px;height:14px}
+        #hotbar{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;background:rgba(15,15,25,.9);padding:5px;border:2px solid #666;border-radius:8px;gap:5px;z-index:10}
+        .slot{width:44px;height:44px;border:2px solid #444;border-radius:4px;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;position:relative;background:#222;font-size:11px;font-weight:bold;padding:2px;cursor:pointer}
+        .slot.selected{border-color:#ffe600;box-shadow:0 0 8px #ffe600;background:#444}
+        .slot .key-num{position:absolute;top:2px;left:3px;font-size:9px;color:#fff;text-shadow:1px 1px #000}
+        .slot .item-icon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px}
+        .slot .item-label{position:absolute;top:-26px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:2px 6px;font-size:10px;border-radius:4px;border:1px solid #555;white-space:nowrap;display:none;pointer-events:none}
+        .slot.selected .item-label{display:block}
+        #instructions{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.65);padding:4px 12px;border-radius:10px;font-size:11px;color:#ddd;pointer-events:none;z-index:10}
+        #alert-box{position:absolute;top:60px;left:50%;transform:translateX(-50%);background:rgba(10,25,10,.95);color:#44ff88;padding:6px 18px;border-radius:16px;font-size:14px;font-weight:bold;border:2px solid #44ff88;display:none;pointer-events:none;z-index:25}
+        .modal-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(5,5,15,.85);display:none;justify-content:center;align-items:center;z-index:100}
+        .inv-window{background:#181924;border:2px solid #6b7c96;border-radius:10px;padding:16px;display:flex;gap:18px;max-width:850px}
+        .inv-panel-title{font-size:15px;font-weight:bold;color:#ffe600;margin-bottom:10px;text-align:center}
+        .inv-grid{display:grid;grid-template-columns:repeat(9,44px);gap:5px;background:#0f1017;padding:8px;border-radius:6px;border:1px solid #33394a}
+        .recipe-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow-y:auto;width:300px;padding-right:4px}
+        .recipe-item{background:#232533;border:1px solid #3a3d52;border-radius:5px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center}
+        .craft-btn,.action-btn{background:#2b75e2;color:#fff;border:1px solid #77aaff;border-radius:5px;padding:6px 10px;font-family:inherit;font-size:11px;font-weight:bold;cursor:pointer}
+        .craft-btn:disabled{background:#444;border-color:#666;color:#777;cursor:not-allowed}
+        .smooth-boost-btn{background:linear-gradient(180deg,#00d26a,#00873e);border:2px solid #66ffaa;color:#fff;font-family:inherit;font-size:14px;font-weight:bold;padding:12px;border-radius:8px;cursor:pointer;text-align:center}
+        .save-card{background:#212333;border:1px solid #4a5270;border-radius:8px;padding:10px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px}
+        .slot-row{display:flex;justify-content:space-between;align-items:center;background:#181924;padding:6px 10px;border-radius:5px}
+        #game-over{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(40,0,0,.92);display:none;flex-direction:column;justify-content:center;align-items:center;z-index:200}
+        #game-over h1{font-size:42px;color:#ff2233;margin-bottom:6px}
+        #respawn-btn{padding:10px 26px;font-size:16px;font-weight:bold;font-family:inherit;cursor:pointer;background:#ffe600;border:2px solid #fff;border-radius:6px}
+    </style>
+</head>
+<body>
+    <div id="home-screen">
+        <div class="title-box">
+            <h1>ABSOLUTECRAFT</h1>
+            <p>MEGA VOXEL WORLD & MOB ADVENTURE</p>
+            <div class="wasm-pill">⚡ WASM & HARDWARE ENGINE</div>
+        </div>
+        <div class="menu-btn-col">
+            <button class="main-btn gold" onclick="startGame()">▶ START ADVENTURE</button>
+            <button class="main-btn" onclick="toggleSettings(true)">⚙️ SETTINGS & SPEED</button>
+            <button class="main-btn" onclick="toggleSaves(true)">💾 SAVES & WORLDS</button>
+        </div>
+    </div>
+
+    <div id="hud">
+        <div class="hud-card">
+            <div id="health-bar">♥♥♥♥♥</div>
+            <div style="font-size:10px;color:#bbb;margin-top:2px">EXPERIENCE</div>
+            <div id="xp-bar-container"><div id="xp-bar-fill"></div></div>
+        </div>
+        <div class="hud-card">
+            <div id="time-info">☀️ 12:00 (Day)</div>
+            <div id="status-text" style="font-size:11px;color:#aaa">Pickaxe: Wood Pickaxe</div>
+            <div id="fps-badge" style="font-size:10px;color:#33ffaa;margin-top:2px">FPS: 60 (WASM Engine)</div>
+        </div>
+    </div>
+
+    <div id="radar-container">
+        <canvas id="minimap-canvas" width="110" height="110"></canvas>
+        <div style="display:flex;gap:4px">
+            <button class="hud-btn" onclick="toggleSettings(true)">⚙️ SETTINGS</button>
+            <button class="hud-btn" onclick="toggleSaves(true)">💾 SAVES</button>
+        </div>
+    </div>
+
+    <div id="alert-box"></div>
+    <div id="crosshair"></div>
+    <div id="instructions">[WASD] Move | [SPACE] Jump | [1-9] Hotbar | [E] Forge | [Left/Right Click] Mine & Place</div>
+    <div id="hotbar"></div>
+
+    <div id="settings-screen" class="modal-screen">
+        <div class="inv-window" style="flex-direction:column;width:420px">
+            <div class="inv-panel-title">⚙️ ENGINE SETTINGS</div>
+            <button class="smooth-boost-btn" onclick="applySmoothBoost()">🚀 Make me run smoothly<br><span style="font-size:10px;font-weight:normal">Instant 60+ FPS Optimization</span></button>
+            <div class="save-card">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                    <label style="font-size:11px">Render Distance:</label>
+                    <select id="opt-dist" style="background:#111;color:#fff;border:1px solid #666;padding:3px" onchange="setRenderDist(this.value)">
+                        <option value="1">1 Chunk (Fastest)</option>
+                        <option value="2" selected>2 Chunks (Balanced)</option>
+                        <option value="3">3 Chunks (Far)</option>
+                    </select>
+                </div>
+            </div>
+            <button class="action-btn" onclick="toggleSettings(false)">CLOSE [ESC]</button>
+        </div>
+    </div>
+
+    <div id="inventory-screen" class="modal-screen">
+        <div class="inv-window">
+            <div>
+                <div class="inv-panel-title">🎒 BACKPACK & HOTBAR</div>
+                <div style="font-size:10px;color:#889;margin-bottom:4px">STORAGE</div>
+                <div class="inv-grid" id="backpack-grid"></div>
+                <div style="font-size:10px;color:#889;margin:8px 0 4px">HOTBAR (1-9)</div>
+                <div class="inv-grid" id="inv-hotbar-grid"></div>
+                <button class="craft-btn" style="width:100%;margin-top:10px;background:#445" onclick="toggleInventory(false)">CLOSE [E / ESC]</button>
+            </div>
+            <div style="border-left:1px solid #33394a;padding-left:14px">
+                <div class="inv-panel-title">🛠️ CRAFTING FORGE</div>
+                <div class="recipe-list" id="recipe-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="smelter-screen" class="modal-screen">
+        <div class="inv-window" style="flex-direction:column;width:440px">
+            <div class="inv-panel-title" style="color:#ff9933">🔥 ORE SMELTER</div>
+            <div class="recipe-list" id="smelter-recipe-list" style="width:100%;max-height:280px"></div>
+            <button class="craft-btn" style="width:100%;margin-top:10px;background:#445" onclick="toggleSmelter(false)">CLOSE [ESC]</button>
+        </div>
+    </div>
+
+    <div id="save-menu-screen" class="modal-screen">
+        <div class="inv-window" style="flex-direction:column;width:440px">
+            <div class="inv-panel-title">💾 WORLD SAVES</div>
+            <div class="save-card"><div id="idb-slots-container" style="display:flex;flex-direction:column;gap:5px"></div></div>
+            <div class="save-card">
+                <div style="display:flex;gap:6px">
+                    <button class="action-btn" style="flex:1" onclick="exportCraftyFile()">📥 EXPORT FILE</button>
+                    <label class="action-btn" style="flex:1;background:#6a2be2;text-align:center;cursor:pointer">📤 IMPORT FILE<input type="file" id="file-importer" accept=".absolutelycrafty,application/json" style="display:none" onchange="importCraftyFile(event)"></label>
+                </div>
+            </div>
+            <button class="action-btn" onclick="toggleSaves(false)">BACK [ESC]</button>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h1>YOU FELL IN BATTLE</h1>
+        <button id="respawn-btn" onclick="respawnHero()">RESPAWN</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // --- ⚡ WASM MODULE ---
+        let wasmNoise = (x, z) => Math.sin(x * 0.05) * Math.cos(z * 0.05);
+        try {
+            const bytes = new Uint8Array([0,97,115,109,1,0,0,0,1,7,1,96,2,125,125,1,125,3,2,1,0,7,14,1,10,102,97,115,116,95,104,97,115,104,0,0,10,24,1,22,0,32,0,67,0,0,64,65,148,32,1,67,0,0,144,66,148,146,11]);
+            const inst = new WebAssembly.Instance(new WebAssembly.Module(bytes));
+            wasmNoise = inst.exports.fast_hash;
+        } catch (e) {}
+
+        // --- 🔊 SOUND ENGINE ---
+        let aCtx = null;
+        function getAC() { if(!aCtx) aCtx = new (window.AudioContext || window.webkitAudioContext)(); if(aCtx.state==='suspended') aCtx.resume(); return aCtx; }
+        const Sfx = {
+            tone(f, d, t='square', v=0.15) { try { const c=getAC(), o=c.createOscillator(), g=c.createGain(); o.type=t; o.frequency.setValueAtTime(f,c.currentTime); g.gain.setValueAtTime(v,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+d); }catch(e){} },
+            noise(d, f=400, v=0.25) { try { const c=getAC(), b=c.createBuffer(1,c.sampleRate*d,c.sampleRate), dt=b.getChannelData(0); for(let i=0;i<dt.length;i++) dt[i]=Math.random()*2-1; const s=c.createBufferSource(); s.buffer=b; const flt=c.createBiquadFilter(); flt.type='lowpass'; flt.frequency.setValueAtTime(f,c.currentTime); const g=c.createGain(); g.gain.setValueAtTime(v,c.currentTime); g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+d); s.connect(flt); flt.connect(g); g.connect(c.destination); s.start(); s.stop(c.currentTime+d); }catch(e){} },
+            mine(){ this.tone(120,0.04,'triangle',0.2); },
+            place(){ this.tone(360,0.04,'sine',0.2); },
+            swing(){ this.noise(0.04,900,0.1); },
+            hit(){ this.tone(150,0.08,'sawtooth',0.25); },
+            fireball(){ this.noise(0.18,1100,0.3); this.tone(460,0.12,'sawtooth',0.2); },
+            explode(){ this.noise(0.5,200,0.7); this.tone(70,0.4,'sawtooth',0.4); },
+            fuse(){ this.noise(0.03,1500,0.15); },
+            mobHit(){ this.tone(80,0.12,'sawtooth',0.25); },
+            mobCry(t){ if(t==='pig') this.tone(280,0.08,'sawtooth',0.12); else if(t==='chicken') this.tone(600,0.05,'triangle',0.15); else if(t==='skeleton') this.tone(450,0.08,'square',0.12); else this.tone(75,0.18,'sawtooth',0.15); },
+            craft(){ [440,554,659].forEach((f,i)=>setTimeout(()=>this.tone(f,0.05,'triangle',0.18),i*40)); },
+            save(){ [350,500,700].forEach((f,i)=>setTimeout(()=>this.tone(f,0.06,'triangle',0.15),i*50)); },
+            load(){ [700,500,350].forEach((f,i)=>setTimeout(()=>this.tone(f,0.06,'triangle',0.15),i*50)); }
+        };
+
+        // --- 🧱 TEXTURE GENERATOR ---
+        function mkTex(c1, c2, dots=10, border=null) {
+            const cv = document.createElement('canvas'); cv.width = cv.height = 16;
+            const cx = cv.getContext('2d'); cx.fillStyle = c1; cx.fillRect(0,0,16,16);
+            cx.fillStyle = c2;
+            for(let i=0;i<dots;i++) cx.fillRect(Math.floor(Math.random()*15), Math.floor(Math.random()*15), 2, 2);
+            if(border) { cx.strokeStyle = border; cx.strokeRect(0,0,16,16); }
+            const t = new THREE.CanvasTexture(cv); t.magFilter = THREE.NearestFilter; return t;
+        }
+
+        const ITEMS = {
+            GRASS: { id: 0, name: 'Grass', isBlock: true, color: '#4a3', icon: '🌿', tex: mkTex('#44aa33','#338822') },
+            DIRT: { id: 1, name: 'Dirt', isBlock: true, color: '#754', icon: '🟤', tex: mkTex('#795548','#5d4037') },
+            STONE: { id: 2, name: 'Stone', isBlock: true, minTier: 1, color: '#888', icon: '🪨', tex: mkTex('#888888','#666666') },
+            SAND: { id: 3, name: 'Sand', isBlock: true, color: '#dc7', icon: '⏳', tex: mkTex('#e0c878','#d0b868') },
+            WOOD: { id: 4, name: 'Wood Log', isBlock: true, color: '#852', icon: '🪵', tex: mkTex('#8d5524','#663d14') },
+            PLANKS: { id: 5, name: 'Planks', isBlock: true, color: '#b73', icon: '📦', tex: mkTex('#b5793e','#8a5928',6,'#593a1a') },
+            LEAVES: { id: 6, name: 'Leaves', isBlock: true, color: '#273', icon: '🍃', tex: mkTex('#2e7d32','#1b5e20') },
+            SNOW: { id: 7, name: 'Snow', isBlock: true, color: '#f4f', icon: '❄️', tex: mkTex('#f0f4f8','#d9e2ec') },
+            GLASS: { id: 8, name: 'Glass', isBlock: true, color: '#ade', icon: '🪟', tex: mkTex('#a0d8ef','#fff',3,'#fff') },
+            COAL_ORE: { id: 9, name: 'Coal Ore', isBlock: true, minTier: 1, color: '#333', icon: '⚫', tex: mkTex('#777','#222',18) },
+            IRON_ORE: { id: 10, name: 'Iron Ore', isBlock: true, minTier: 2, color: '#da9', icon: '⚪', tex: mkTex('#777','#d8af93',18) },
+            GOLD_ORE: { id: 11, name: 'Gold Ore', isBlock: true, minTier: 2, color: '#fd0', icon: '🟡', tex: mkTex('#777','#ffd700',18) },
+            DIAMOND_ORE: { id: 12, name: 'Diamond Ore', isBlock: true, minTier: 3, color: '#0ff', icon: '💎', tex: mkTex('#777','#00ffff',18) },
+            RUBY_ORE: { id: 13, name: 'Ruby Ore', isBlock: true, minTier: 2, color: '#f14', icon: '🔻', tex: mkTex('#777','#ff1744',18) },
+            TORCH: { id: 14, name: 'Torch', isBlock: true, isLight: true, color: '#fa0', icon: '🕯️', tex: mkTex('#ffaa00','#ff3300') },
+            APPLE: { id: 15, name: 'Apple', isFood: true, heal: 2, color: '#f34', icon: '🍎' },
+            PORKCHOP: { id: 16, name: 'Cooked Meat', isFood: true, heal: 4, color: '#f88', icon: '🥩' },
+            FIRE_STAFF: { id: 17, name: 'Fire Staff', isStaff: true, dmg: 18, color: '#f30', icon: '🪄' },
+            SWORD_RUBY: { id: 18, name: 'Ruby Sword', isWeapon: true, dmg: 10, color: '#f14', icon: '🗡️' },
+            IRON_INGOT: { id: 19, name: 'Iron Block', isBlock: true, color: '#ddd', icon: '🪙', tex: mkTex('#d8d8d8','#fff',4,'#888') },
+            RUBY: { id: 20, name: 'Ruby Block', isBlock: true, color: '#f14', icon: '💎', tex: mkTex('#ff1744','#ffa0a0',4,'#800') },
+            BED: { id: 21, name: 'Bed', isBlock: true, isBed: true, color: '#d22', icon: '🛏️', tex: mkTex('#b71c1c','#fff',2,'#543') },
+            SMELTER: { id: 22, name: 'Smelter', isBlock: true, isSmelter: true, color: '#555', icon: '🔥', tex: mkTex('#555','#ff6600',8,'#222') },
+            TNT: { id: 23, name: 'TNT', isBlock: true, isTNT: true, color: '#c22', icon: '💣', tex: mkTex('#cc292b','#ffffff',6,'#000') }
+        };
+        const ITEM_BY_ID = {}; Object.values(ITEMS).forEach(it => { ITEM_BY_ID[it.id] = it; });
+
+        const TOOL_TIERS = [
+            { name: 'Wood Pickaxe', maxMineTier: 1 },
+            { name: 'Stone Pickaxe', maxMineTier: 2 },
+            { name: 'Iron Pickaxe', maxMineTier: 3 },
+            { name: 'Diamond Pickaxe', maxMineTier: 3 }
+        ];
+
+        // --- INVENTORY STATE ---
+        let hotbarData = new Array(9).fill(null);
+        let backpackData = new Array(27).fill(null);
+        hotbarData[0] = { id: ITEMS.FIRE_STAFF.id, count: 1 };
+        hotbarData[1] = { id: ITEMS.TNT.id, count: 8 };
+        hotbarData[2] = { id: ITEMS.DIRT.id, count: 64 };
+        hotbarData[3] = { id: ITEMS.WOOD.id, count: 32 };
+        hotbarData[4] = { id: ITEMS.TORCH.id, count: 16 };
+        hotbarData[5] = { id: ITEMS.APPLE.id, count: 5 };
+        backpackData[0] = { id: ITEMS.STONE.id, count: 32 };
+        backpackData[1] = { id: ITEMS.COAL_ORE.id, count: 16 };
+        backpackData[2] = { id: ITEMS.RUBY_ORE.id, count: 8 };
+
+        let selectedSlot = 0, currentPickaxeTier = 0, playerHealth = 5, playerXP = 0, dayProgress = 0.25;
+        let isGameOver = false, isInventoryOpen = false, isSaveMenuOpen = false, isSmelterOpen = false, isSettingsOpen = false, isGameStarted = false;
+        let spawnPoint = { x: 0, y: 15, z: 0 }, RENDER_RADIUS = 2;
+
+        function countItem(id) { let t=0; [...hotbarData, ...backpackData].forEach(s=>{ if(s&&s.id===id) t+=s.count; }); return t; }
+        function consumeItem(id, amt) {
+            let rem = amt;
+            const sub = (s) => { if(rem<=0||!s||s.id!==id) return; if(s.count<=rem){ rem-=s.count; s.count=0; s.id=null; } else { s.count-=rem; rem=0; } };
+            hotbarData.forEach(sub); backpackData.forEach(sub);
+            for(let i=0;i<9;i++) if(hotbarData[i]&&hotbarData[i].count<=0) hotbarData[i]=null;
+            for(let i=0;i<27;i++) if(backpackData[i]&&backpackData[i].count<=0) backpackData[i]=null;
+        }
+        function addItem(id, count=1) {
+            for(const list of [hotbarData, backpackData]) {
+                for(let i=0;i<list.length;i++) { if(list[i]&&list[i].id===id){ list[i].count+=count; return true; } }
+            }
+            for(let i=0;i<9;i++) if(!hotbarData[i]){ hotbarData[i]={id,count}; return true; }
+            for(let i=0;i<27;i++) if(!backpackData[i]){ backpackData[i]={id,count}; return true; }
+            return false;
+        }
+
+        // --- 🌍 THREE.JS WORLD & INSTANCING ---
+        const scene = new THREE.Scene();
+        const skyCol = new THREE.Color(0x78b8ff); scene.background = skyCol; scene.fog = new THREE.FogExp2(skyCol, 0.025);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 600); camera.rotation.order = 'YXZ';
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight); renderer.setPixelRatio(Math.min(1.0, window.devicePixelRatio));
+        document.body.appendChild(renderer.domElement);
+
+        const ambLight = new THREE.AmbientLight(0xffffff, 0.5); scene.add(ambLight);
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 0.9); scene.add(sunLight);
+        const sunMesh = new THREE.Mesh(new THREE.BoxGeometry(12,12,2), new THREE.MeshBasicMaterial({color:0xfff066})); scene.add(sunMesh);
+        const moonMesh = new THREE.Mesh(new THREE.BoxGeometry(10,10,2), new THREE.MeshBasicMaterial({color:0xeef4ff})); scene.add(moonMesh);
+
+        const boxGeo = new THREE.BoxGeometry(1,1,1), instancedMeshes = {}, blockMap = new Map(), chunkBlocks = new Map(), freeSlots = {}, allocated = {};
+        const dMat = new THREE.Matrix4(), hideMat = new THREE.Matrix4().setPosition(0,-99999,0), CHUNK_SIZE = 16, activeChunks = new Set(), torchLights = [];
+
+        Object.values(ITEMS).forEach(it => {
+            if (it.isBlock) {
+                const cap = it.id === ITEMS.STONE.id ? 30000 : 12000;
+                const im = new THREE.InstancedMesh(boxGeo, new THREE.MeshLambertMaterial({ map: it.tex }), cap);
+                for(let i=0; i<cap; i++) im.setMatrixAt(i, hideMat);
+                im.count = cap; im.maxCap = cap; im.blockId = it.id; im.frustumCulled = false; im.instanceMatrix.needsUpdate = true;
+                scene.add(im); instancedMeshes[it.id] = im; freeSlots[it.id] = []; allocated[it.id] = 0;
+            }
+        });
+
+        function getBlock(x,y,z) { return blockMap.get(`${Math.round(x)},${Math.round(y)},${Math.round(z)}`); }
+        function setBlock(x,y,z,id,cKey=null) {
+            const rx=Math.round(x), ry=Math.round(y), rz=Math.round(z), key=`${rx},${ry},${rz}`;
+            if (blockMap.has(key)) return;
+            const im = instancedMeshes[id]; if(!im) return;
+            const slot = freeSlots[id].length>0 ? freeSlots[id].pop() : (allocated[id] < im.maxCap ? allocated[id]++ : null);
+            if (slot === null) return;
+            dMat.setPosition(rx, ry, rz); im.setMatrixAt(slot, dMat); im.instanceMatrix.needsUpdate = true;
+            blockMap.set(key, { id, instIdx: slot, x: rx, y: ry, z: rz, cKey });
+            if (cKey) { if(!chunkBlocks.has(cKey)) chunkBlocks.set(cKey, []); chunkBlocks.get(cKey).push(key); }
+            if (ITEM_BY_ID[id].isLight) {
+                const l = new THREE.PointLight(0xffaa44, 2, 12); l.position.set(rx, ry+0.5, rz); scene.add(l); torchLights.push({key, l});
+            }
+        }
+        function removeBlock(x,y,z) {
+            const rx=Math.round(x), ry=Math.round(y), rz=Math.round(z), key=`${rx},${ry},${rz}`, b=blockMap.get(key);
+            if(!b) return;
+            spawnParticles(rx, ry, rz, ITEM_BY_ID[b.id].color);
+            const im = instancedMeshes[b.id];
+            if(im) { im.setMatrixAt(b.instIdx, hideMat); im.instanceMatrix.needsUpdate = true; freeSlots[b.id].push(b.instIdx); }
+            blockMap.delete(key);
+            const tIdx = torchLights.findIndex(t => t.key === key);
+            if(tIdx > -1) { scene.remove(torchLights[tIdx].l); torchLights.splice(tIdx, 1); }
+        }
+        function unloadChunk(cx, cz) {
+            const cKey = `${cx},${cz}`, keys = chunkBlocks.get(cKey);
+            if (keys) {
+                keys.forEach(k => {
+                    const b = blockMap.get(k);
+                    if(b) {
+                        const im = instancedMeshes[b.id];
+                        if(im) { im.setMatrixAt(b.instIdx, hideMat); im.instanceMatrix.needsUpdate = true; freeSlots[b.id].push(b.instIdx); }
+                        blockMap.delete(k);
+                    }
+                });
+                chunkBlocks.delete(cKey);
+            }
+            activeChunks.delete(cKey);
+        }
+
+        function pRand(x, z) { const n = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453; return n - Math.floor(n); }
+        function getTerrainH(gx, gz) {
+            const n = wasmNoise(gx, gz) * 4;
+            const h = Math.max(3, Math.floor(7 + n + Math.sin(gx * 0.1) * 2));
+            return { h, biome: Math.sin(gx * 0.02) > 0.3 ? 'mountain' : 'plains' };
+        }
+
+        function genChunk(cx, cz) {
+            const cKey = `${cx},${cz}`; if (activeChunks.has(cKey)) return; activeChunks.add(cKey);
+            for(let bx=0; bx<CHUNK_SIZE; bx++) {
+                for(let bz=0; bz<CHUNK_SIZE; bz++) {
+                    const gx = cx*CHUNK_SIZE + bx, gz = cz*CHUNK_SIZE + bz;
+                    const { h, biome } = getTerrainH(gx, gz);
+                    setBlock(gx, 0, gz, ITEMS.STONE.id, cKey);
+                    for(let y=1; y<=h-3; y++) {
+                        const r = pRand(gx + y*7, gz - y*13);
+                        if(r < 0.015) setBlock(gx, y, gz, ITEMS.DIAMOND_ORE.id, cKey);
+                        else if(r < 0.04) setBlock(gx, y, gz, ITEMS.RUBY_ORE.id, cKey);
+                        else if(r < 0.08) setBlock(gx, y, gz, ITEMS.GOLD_ORE.id, cKey);
+                        else if(r < 0.14) setBlock(gx, y, gz, ITEMS.IRON_ORE.id, cKey);
+                        else if(r < 0.22) setBlock(gx, y, gz, ITEMS.COAL_ORE.id, cKey);
+                        else setBlock(gx, y, gz, ITEMS.STONE.id, cKey);
+                    }
+                    for(let y=Math.max(1, h-2); y<h; y++) setBlock(gx, y, gz, ITEMS.DIRT.id, cKey);
+                    setBlock(gx, h, gz, biome==='mountain'?ITEMS.SNOW.id:ITEMS.GRASS.id, cKey);
+                    if(biome==='plains' && pRand(gx, gz) < 0.015 && (gx!==0||gz!==0)) {
+                        for(let th=1; th<=4; th++) setBlock(gx, h+th, gz, ITEMS.WOOD.id, cKey);
+                        for(let lx=-1; lx<=1; lx++) for(let lz=-1; lz<=1; lz++) {
+                            setBlock(gx+lx, h+4, gz+lz, ITEMS.LEAVES.id, cKey);
+                            setBlock(gx+lx, h+5, gz+lz, ITEMS.LEAVES.id, cKey);
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 🤺 MOBS ROSTER (ZOMBIE, CREEPER, SKELETON, PIG, CHICKEN) ---
+        const mobs = [];
+        function createMobMesh(type) {
+            const g = new THREE.Group();
+            let bMat;
+            if (type==='zombie') bMat = new THREE.MeshLambertMaterial({color:0x3d7a44});
+            else if (type==='creeper') bMat = new THREE.MeshLambertMaterial({color:0x48b02a});
+            else if (type==='skeleton') bMat = new THREE.MeshLambertMaterial({color:0xdddddd});
+            else if (type==='pig') bMat = new THREE.MeshLambertMaterial({color:0xffa0b0});
+            else bMat = new THREE.MeshLambertMaterial({color:0xffffff});
+
+            const body = new THREE.Mesh(type==='chicken'?new THREE.BoxGeometry(0.4,0.5,0.5):type==='pig'?new THREE.BoxGeometry(0.8,0.6,1):new THREE.BoxGeometry(0.7,1.8,0.7), bMat);
+            g.add(body);
+            if(type==='pig'){ const sn = new THREE.Mesh(new THREE.BoxGeometry(0.25,0.2,0.2), new THREE.MeshLambertMaterial({color:0xff7090})); sn.position.set(0,0,0.55); g.add(sn); }
+            if(type==='chicken'){ const bk = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.1,0.12), new THREE.MeshLambertMaterial({color:0xffaa00})); bk.position.set(0,0.1,0.3); g.add(bk); }
+            return { group: g, body };
+        }
+
+        function spawnMob(type='zombie') {
+            const a = Math.random()*Math.PI*2, d = 16+Math.random()*12;
+            const mx = camera.position.x + Math.cos(a)*d, mz = camera.position.z + Math.sin(a)*d;
+            const { group, body } = createMobMesh(type);
+            group.position.set(mx, 14, mz); scene.add(group);
+            mobs.push({
+                type,
+                isPassive: (type==='pig'||type==='chicken'),
+                mesh: group, body,
+                health: type==='zombie'?12:(type==='skeleton'?10:(type==='creeper'?8:4)),
+                velY: 0, lastHit: 0, fuse: 0, wanderA: Math.random()*Math.PI*2, wanderT: 0
+            });
+        }
+
+        // Spawn initial friendly fauna
+        for(let i=-RENDER_RADIUS; i<=RENDER_RADIUS; i++) for(let j=-RENDER_RADIUS; j<=RENDER_RADIUS; j++) genChunk(i,j);
+        spawnPoint = { x: 0, y: getTerrainH(0,0).h + 3, z: 0 };
+        camera.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+        for(let i=0; i<6; i++) spawnMob(Math.random()<0.5?'pig':'chicken');
+
+        // --- 💥 PARTICLES & PROJECTILES & TNT ---
+        const particles = [], projectiles = [], explosives = [];
+        const pGeo = new THREE.BoxGeometry(0.15,0.15,0.15);
+        function spawnParticles(x,y,z,color='#fff',cnt=6) {
+            const mat = new THREE.MeshBasicMaterial({color});
+            for(let i=0;i<cnt;i++) {
+                const p = new THREE.Mesh(pGeo, mat); p.position.set(x+(Math.random()-.5)*.5, y+(Math.random()-.5)*.5, z+(Math.random()-.5)*.5);
+                scene.add(p);
+                particles.push({ m:p, vx:(Math.random()-.5)*.15, vy:Math.random()*.15+.05, vz:(Math.random()-.5)*.15, l:20 });
+            }
+        }
+        function shootFireball() {
+            const dir = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion).normalize();
+            const m = new THREE.Mesh(new THREE.SphereGeometry(0.25,6,6), new THREE.MeshBasicMaterial({color:0xff3300}));
+            m.position.copy(camera.position).add(dir.clone().multiplyScalar(0.8)); scene.add(m);
+            projectiles.push({ m, vx:dir.x*0.8, vy:dir.y*0.8, vz:dir.z*0.8, l:80 });
+            Sfx.fireball();
+        }
+        function igniteTNT(x,y,z) {
+            removeBlock(x,y,z);
+            const m = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({map:ITEMS.TNT.tex}));
+            m.position.set(x,y,z); scene.add(m);
+            explosives.push({ m, x, y, z, fuse: 60, scale: 0 });
+            Sfx.fuse();
+        }
+        function detonateExplosion(ex,ey,ez) {
+            Sfx.explode(); spawnParticles(ex,ey,ez,'#ff4400',20);
+            for(let dx=-3; dx<=3; dx++) for(let dy=-3; dy<=3; dy++) for(let dz=-3; dz<=3; dz++) {
+                if(dx*dx+dy*dy+dz*dz <= 9) {
+                    const b = getBlock(ex+dx, ey+dy, ez+dz);
+                    if(b) removeBlock(ex+dx, ey+dy, ez+dz);
+                }
+            }
+            mobs.forEach(m => {
+                if(m.mesh.position.distanceTo(new THREE.Vector3(ex,ey,ez)) < 5.5) { m.health -= 25; m.velY = 0.3; }
+            });
+            const pD = camera.position.distanceTo(new THREE.Vector3(ex,ey,ez));
+            if(pD < 5.5) { playerHealth -= Math.max(1, 4 - Math.floor(pD*0.5)); Sfx.hit(); updateUI(); }
+        }
+
+        // --- 🗺️ MINIMAP ---
+        const mmCv = document.getElementById('minimap-canvas'), mmCx = mmCv.getContext('2d');
+        function drawRadar() {
+            mmCx.fillStyle='#111722'; mmCx.fillRect(0,0,110,110);
+            const px=camera.position.x, pz=camera.position.z, sc=2.2;
+            blockMap.forEach(b => {
+                const dx=(b.x-px)*sc+55, dz=(b.z-pz)*sc+55;
+                if(dx>=0&&dx<110&&dz>=0&&dz<110) { mmCx.fillStyle=ITEM_BY_ID[b.id]?.color||'#444'; mmCx.fillRect(dx,dz,2,2); }
+            });
+            mobs.forEach(m => {
+                const mx=(m.mesh.position.x-px)*sc+55, mz=(m.mesh.position.z-pz)*sc+55;
+                if(mx>=0&&mx<110&&mz>=0&&mz<110) {
+                    mmCx.fillStyle = m.isPassive ? '#33ff55' : '#ff2233';
+                    mmCx.beginPath(); mmCx.arc(mx,mz,2.5,0,Math.PI*2); mmCx.fill();
+                }
+            });
+            mmCx.fillStyle='#ff0'; mmCx.beginPath(); mmCx.arc(55,55,3.5,0,Math.PI*2); mmCx.fill();
+        }
+
+        // --- 🏃 PHYSICS & CONTROLS ---
+        let playerVelY=0, canJump=false, lastChunkX=9999, lastChunkZ=9999;
+        const keys={};
+        function checkCol(pos, sx=0.3, sy=1.6) {
+            for(let x=-sx; x<=sx; x+=sx*2) for(let z=-sx; z<=sx; z+=sx*2) {
+                if(getBlock(pos.x+x, pos.y-sy, pos.z+z) || getBlock(pos.x+x, pos.y-sy*0.5, pos.z+z)) return true;
+            }
+            return false;
+        }
+
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if((e.code==='KeyE'||e.code==='KeyI') && isGameStarted && !isGameOver) toggleInventory(!isInventoryOpen);
+            if(e.code==='Escape') { toggleInventory(false); toggleSaves(false); toggleSmelter(false); toggleSettings(false); }
+            if(e.key>='1' && e.key<='9') { selectedSlot = parseInt(e.key)-1; updateUI(); }
+        });
+        window.addEventListener('keyup', e => { keys[e.code]=false; });
+
+        document.addEventListener('mousemove', e => {
+            if(document.pointerLockElement===document.body && !isInventoryOpen && !isSaveMenuOpen && !isSmelterOpen && !isSettingsOpen && !isGameOver) {
+                camera.rotation.y -= e.movementX * 0.0026;
+                camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x - e.movementY * 0.0026));
+            }
+        });
+
+        document.addEventListener('mousedown', e => {
+            if(isInventoryOpen||isSaveMenuOpen||isSmelterOpen||isSettingsOpen||isGameOver||!isGameStarted) return;
+            if(document.pointerLockElement!==document.body){ document.body.requestPointerLock(); getAC(); return; }
+
+            const held = hotbarData[selectedSlot] ? ITEM_BY_ID[hotbarData[selectedSlot].id] : null;
+            if(e.button===0 && held?.isStaff) { shootFireball(); return; }
+
+            // Mob Melee Attack
+            if(e.button===0) {
+                Sfx.swing();
+                const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(0,0), camera);
+                const hits = ray.intersectObjects(mobs.map(m=>m.mesh.children[0]));
+                if(hits.length>0 && hits[0].distance<4.5) {
+                    const mob = mobs.find(m=>m.mesh.children[0]===hits[0].object);
+                    if(mob && Date.now() - mob.lastHit > 200) {
+                        mob.lastHit = Date.now();
+                        const dmg = held?.isWeapon ? held.dmg : (currentPickaxeTier+2);
+                        mob.health -= dmg; Sfx.hit();
+                        mob.mesh.position.add(mob.mesh.position.clone().sub(camera.position).normalize().multiplyScalar(0.8));
+                        mob.body.material.color.setHex(0xff0000);
+                        setTimeout(()=>{ if(mob.body) mob.body.material.color.setHex(mob.type==='zombie'?0x3d7a44:mob.type==='creeper'?0x48b02a:mob.type==='skeleton'?0xdddddd:mob.type==='pig'?0xffa0b0:0xffffff); }, 100);
+
+                        if(mob.health<=0) {
+                            scene.remove(mob.mesh); mobs.splice(mobs.indexOf(mob),1);
+                            playerXP += 20; Sfx.craft(); showAlert(`Defeated ${mob.type.toUpperCase()}! (+20 XP)`);
+                            if(mob.type==='pig') addItem(ITEMS.PORKCHOP.id, 2);
+                            else if(mob.type==='chicken') addItem(ITEMS.APPLE.id, 1);
+                            updateUI();
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // Voxel Raycast (Mine / Place)
+            const ray = new THREE.Raycaster(); ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const blockHits = ray.intersectObjects(Object.values(instancedMeshes));
+            if(blockHits.length>0 && blockHits[0].distance<6) {
+                const hit = blockHits[0], hMat = new THREE.Matrix4();
+                hit.object.getMatrixAt(hit.instanceId, hMat);
+                const bPos = new THREE.Vector3().setFromMatrixPosition(hMat);
+                if(bPos.y < -5000) return;
+                const bData = ITEM_BY_ID[hit.object.blockId];
+
+                if(e.button===2) {
+                    if(bData.isBed) {
+                        if(-Math.sin((dayProgress-0.25)*Math.PI*2) <= 0) {
+                            dayProgress = 0.25; spawnPoint = { x: bPos.x, y: bPos.y+1.2, z: bPos.z };
+                            Sfx.craft(); showAlert("Slept until morning! ☀️ Spawn point set!");
+                        } else showAlert("You can only sleep at night! ☀️");
+                        return;
+                    }
+                    if(bData.isSmelter) { toggleSmelter(true); return; }
+                    if(bData.isTNT) { igniteTNT(bPos.x, bPos.y, bPos.z); return; }
+                }
+
+                if(e.button===0) {
+                    if(bData.isTNT) { igniteTNT(bPos.x, bPos.y, bPos.z); return; }
+                    if((bData.minTier||0) <= TOOL_TIERS[currentPickaxeTier].maxMineTier) {
+                        addItem(bData.id, 1); removeBlock(bPos.x, bPos.y, bPos.z); Sfx.mine(); updateUI();
+                    } else showAlert("Need a stronger pickaxe!");
+                } else if(e.button===2) {
+                    if(held?.isFood && playerHealth<5) {
+                        consumeItem(held.id, 1); playerHealth = Math.min(5, playerHealth+held.heal); Sfx.craft(); updateUI();
+                    } else if(held?.isBlock) {
+                        const np = bPos.clone().add(hit.face.normal);
+                        if(np.distanceTo(camera.position) > 0.8) {
+                            const pcx = Math.floor(np.x/CHUNK_SIZE), pcz = Math.floor(np.z/CHUNK_SIZE);
+                            setBlock(np.x, np.y, np.z, held.id, `${pcx},${pcz}`);
+                            consumeItem(held.id, 1); Sfx.place(); updateUI();
+                        }
+                    }
+                }
+            }
+        });
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        // --- 🛠️ CRAFTING & SMELTING ---
+        const RECIPES = [
+            { res: 'Planks (4x)', id: ITEMS.PLANKS.id, cost: {[ITEMS.WOOD.id]:1}, run: ()=>addItem(ITEMS.PLANKS.id,4) },
+            { res: 'Torch (4x)', id: ITEMS.TORCH.id, cost: {[ITEMS.WOOD.id]:1,[ITEMS.COAL_ORE.id]:1}, run: ()=>addItem(ITEMS.TORCH.id,4) },
+            { res: 'Stone Pickaxe', id: ITEMS.STONE.id, cost: {[ITEMS.WOOD.id]:2,[ITEMS.STONE.id]:3}, run: ()=>{ currentPickaxeTier=Math.max(1,currentPickaxeTier); } },
+            { res: 'Iron Pickaxe', id: ITEMS.IRON_INGOT.id, cost: {[ITEMS.WOOD.id]:2,[ITEMS.IRON_INGOT.id]:3}, run: ()=>{ currentPickaxeTier=Math.max(2,currentPickaxeTier); } },
+            { res: 'Fire Staff 🪄', id: ITEMS.FIRE_STAFF.id, cost: {[ITEMS.WOOD.id]:2,[ITEMS.RUBY.id]:2}, run: ()=>addItem(ITEMS.FIRE_STAFF.id,1) },
+            { res: 'TNT Explosive 💣', id: ITEMS.TNT.id, cost: {[ITEMS.SAND.id]:2,[ITEMS.COAL_ORE.id]:2}, run: ()=>addItem(ITEMS.TNT.id,2) },
+            { res: 'Smelter 🔥', id: ITEMS.SMELTER.id, cost: {[ITEMS.STONE.id]:8}, run: ()=>addItem(ITEMS.SMELTER.id,1) },
+            { res: 'Bed 🛏️', id: ITEMS.BED.id, cost: {[ITEMS.PLANKS.id]:3,[ITEMS.LEAVES.id]:3}, run: ()=>addItem(ITEMS.BED.id,1) }
+        ];
+
+        const SMELT_RECIPES = [
+            { res: 'Iron Block 🪙', cost: {[ITEMS.IRON_ORE.id]:1,[ITEMS.COAL_ORE.id]:1}, out: ITEMS.IRON_INGOT.id, xp:15 },
+            { res: 'Ruby Gem Block 💎', cost: {[ITEMS.RUBY_ORE.id]:1,[ITEMS.COAL_ORE.id]:1}, out: ITEMS.RUBY.id, xp:25 },
+            { res: 'Glass Block 🪟', cost: {[ITEMS.SAND.id]:2,[ITEMS.COAL_ORE.id]:1}, out: ITEMS.GLASS.id, xp:10 }
+        ];
+
+        function renderCraftForge() {
+            const l = document.getElementById('recipe-list'); l.innerHTML = '';
+            RECIPES.forEach((r, idx) => {
+                let ok = true;
+                const costS = Object.entries(r.cost).map(([id,amt])=>{ const have=countItem(parseInt(id)); if(have<amt) ok=false; return `${ITEM_BY_ID[id].name}:${have}/${amt}`; }).join(', ');
+                const div = document.createElement('div'); div.className = 'recipe-item';
+                div.innerHTML = `<div><b>${r.res}</b><div style="font-size:10px;color:${ok?'#6f8':'#f77'}">${costS}</div></div><button class="craft-btn" ${ok?'':'disabled'} onclick="craftItem(${idx})">CRAFT</button>`;
+                l.appendChild(div);
+            });
+        }
+        window.craftItem = function(idx) {
+            const r = RECIPES[idx]; Object.entries(r.cost).forEach(([id,amt])=>consumeItem(parseInt(id),amt));
+            r.run(); Sfx.craft(); showAlert(`Crafted ${r.res}!`); updateUI(); renderCraftForge();
+        };
+
+        function renderSmelterUI() {
+            const l = document.getElementById('smelter-recipe-list'); l.innerHTML = '';
+            SMELT_RECIPES.forEach((r, idx) => {
+                let ok = true;
+                const costS = Object.entries(r.cost).map(([id,amt])=>{ const have=countItem(parseInt(id)); if(have<amt) ok=false; return `${ITEM_BY_ID[id].name}:${have}/${amt}`; }).join(', ');
+                const div = document.createElement('div'); div.className = 'recipe-item';
+                div.innerHTML = `<div><b>${r.res}</b><div style="font-size:10px;color:${ok?'#fa4':'#f77'}">${costS}</div></div><button class="craft-btn" style="background:#e65c00" ${ok?'':'disabled'} onclick="smeltItem(${idx})">SMELT</button>`;
+                l.appendChild(div);
+            });
+        }
+        window.smeltItem = function(idx) {
+            const r = SMELT_RECIPES[idx]; Object.entries(r.cost).forEach(([id,amt])=>consumeItem(parseInt(id),amt));
+            addItem(r.out, 1); playerXP += r.xp; Sfx.craft(); showAlert(`Smelted ${r.res}! (+${r.xp} XP)`); updateUI(); renderSmelterUI();
+        };
+
+        // --- 💾 SAVES (INDEXEDDB & FILE) ---
+        let db;
+        function getDB() {
+            return new Promise((res,rej)=>{
+                if(db) return res(db);
+                const req = indexedDB.open('AbsoluteCraft_DB', 1);
+                req.onupgradeneeded = e => e.target.result.createObjectStore('saves', {keyPath:'slot'});
+                req.onsuccess = e => { db=e.target.result; res(db); };
+                req.onerror = rej;
+            });
+        }
+        function getSaveData() {
+            const bData = []; blockMap.forEach(b => bData.push([b.x,b.y,b.z,b.id,b.cKey]));
+            return {
+                app: "AbsoluteCraft",
+                player: { x:camera.position.x, y:camera.position.y, z:camera.position.z, rx:camera.rotation.x, ry:camera.rotation.y, hp:playerHealth, xp:playerXP, tier:currentPickaxeTier, spawn:spawnPoint },
+                world: { dayProgress, blocks: bData },
+                inv: { hotbar: hotbarData, backpack: backpackData }
+            };
+        }
+        function loadSaveData(d) {
+            if(!d?.player || !d?.world) return;
+            Object.values(instancedMeshes).forEach(im => { for(let i=0;i<im.maxCap;i++) im.setMatrixAt(i,hideMat); im.instanceMatrix.needsUpdate=true; });
+            Object.keys(freeSlots).forEach(k => { freeSlots[k]=[]; allocated[k]=0; });
+            torchLights.forEach(t=>scene.remove(t.l)); torchLights.length=0; blockMap.clear(); chunkBlocks.clear(); activeChunks.clear();
+            camera.position.set(d.player.x, d.player.y, d.player.z);
+            camera.rotation.set(d.player.rx, d.player.ry, 0);
+            playerHealth = d.player.hp??5; playerXP = d.player.xp??0; currentPickaxeTier = d.player.tier??0;
+            dayProgress = d.world.dayProgress??0.25; spawnPoint = d.player.spawn||spawnPoint;
+            hotbarData = d.inv?.hotbar || hotbarData; backpackData = d.inv?.backpack || backpackData;
+            d.world.blocks?.forEach(([x,y,z,id,c])=>{ if(ITEM_BY_ID[id]) setBlock(x,y,z,id,c); });
+            Sfx.load(); updateUI(); toggleSaves(false); if(!isGameStarted) startGame();
+            showAlert("World Loaded! 🚀");
+        }
+        async function saveSlot(s) {
+            const d = getSaveData(); d.slot = s; d.time = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+            const tx = (await getDB()).transaction('saves','readwrite'); tx.objectStore('saves').put(d);
+            tx.oncomplete = () => { Sfx.save(); showAlert(`Saved to [${s}]!`); renderSaveUI(); };
+        }
+        async function loadSlot(s) {
+            const tx = (await getDB()).transaction('saves','readonly');
+            const req = tx.objectStore('saves').get(s);
+            req.onsuccess = () => { if(req.result) loadSaveData(req.result); else showAlert("Slot is empty!"); };
+        }
+        async function renderSaveUI() {
+            const c = document.getElementById('idb-slots-container'); c.innerHTML = '';
+            const req = (await getDB()).transaction('saves','readonly').objectStore('saves').getAll();
+            req.onsuccess = () => {
+                const map = {}; (req.result||[]).forEach(r => map[r.slot]=r);
+                ['Slot 1', 'Slot 2', 'Slot 3'].forEach((name, i) => {
+                    const key = `slot_${i+1}`, it = map[key];
+                    const d = document.createElement('div'); d.className = 'slot-row';
+                    d.innerHTML = `<div><b>${name}</b> <span style="font-size:10px;color:${it?'#3fa':'#777'}">${it?it.time:'Empty'}</span></div><div><button class="action-btn" style="background:#28a745;padding:4px 8px" onclick="saveSlot('${key}')">SAVE</button> <button class="action-btn" style="background:#17a2b8;padding:4px 8px" ${it?'':'disabled'} onclick="loadSlot('${key}')">LOAD</button></div>`;
+                    c.appendChild(d);
+                });
+            };
+        }
+        function exportCraftyFile() {
+            const blob = new Blob([JSON.stringify(getSaveData())], {type:'application/json'});
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `world_${Date.now()}.absolutelycrafty`;
+            a.click(); Sfx.save(); showAlert("Exported .absolutelycrafty file! 💾");
+        }
+        function importCraftyFile(e) {
+            const f = e.target.files[0]; if(!f) return;
+            const r = new FileReader(); r.onload = ev => { try{ loadSaveData(JSON.parse(ev.target.result)); }catch(err){ showAlert("Invalid File!"); } };
+            r.readAsText(f);
+        }
+
+        // --- 🪟 UI & MODALS ---
+        let alertT;
+        function showAlert(msg) {
+            const el = document.getElementById('alert-box'); el.innerText = msg; el.style.display = 'block';
+            clearTimeout(alertT); alertT = setTimeout(()=>{ el.style.display='none'; }, 2000);
+        }
+        function updateUI() {
+            document.getElementById('health-bar').innerText = '♥'.repeat(Math.max(0, Math.floor(playerHealth)));
+            document.getElementById('status-text').innerText = `Pickaxe: ${TOOL_TIERS[currentPickaxeTier].name}`;
+            document.getElementById('xp-bar-fill').style.width = `${playerXP % 100}%`;
+            const hb = document.getElementById('hotbar'); hb.innerHTML = '';
+            hotbarData.forEach((s, i) => {
+                const d = document.createElement('div'); d.className = `slot ${i===selectedSlot?'selected':''}`;
+                if(s) {
+                    const it = ITEM_BY_ID[s.id]; d.style.backgroundColor = it.color||'#333';
+                    d.innerHTML = `<span class="key-num">${i+1}</span><div class="item-icon">${it.icon}</div><span class="item-label">${it.name}</span>${s.count>1?`<span>${s.count}</span>`:''}`;
+                } else d.innerHTML = `<span class="key-num">${i+1}</span>`;
+                hb.appendChild(d);
+            });
+        }
+        function toggleInventory(o) {
+            isInventoryOpen = o; document.getElementById('inventory-screen').style.display = o?'flex':'none';
+            if(o) {
+                if(document.pointerLockElement) document.exitPointerLock();
+                const bp = document.getElementById('backpack-grid'), hb = document.getElementById('inv-hotbar-grid');
+                bp.innerHTML = ''; hb.innerHTML = '';
+                const renderSlot = (s) => {
+                    const d = document.createElement('div'); d.className = 'slot';
+                    if(s) { const it = ITEM_BY_ID[s.id]; d.style.backgroundColor=it.color; d.innerHTML=`<div class="item-icon">${it.icon}</div><span>${s.count>1?s.count:''}</span>`; }
+                    return d;
+                };
+                backpackData.forEach(s=>bp.appendChild(renderSlot(s)));
+                hotbarData.forEach(s=>hb.appendChild(renderSlot(s)));
+                renderCraftForge();
+            }
+        }
+        function toggleSmelter(o) { isSmelterOpen=o; document.getElementById('smelter-screen').style.display=o?'flex':'none'; if(o){ if(document.pointerLockElement) document.exitPointerLock(); renderSmelterUI(); } }
+        function toggleSaves(o) { isSaveMenuOpen=o; document.getElementById('save-menu-screen').style.display=o?'flex':'none'; if(o){ if(document.pointerLockElement) document.exitPointerLock(); renderSaveUI(); } }
+        function toggleSettings(o) { isSettingsOpen=o; document.getElementById('settings-screen').style.display=o?'flex':'none'; if(o && document.pointerLockElement) document.exitPointerLock(); }
+
+        function applySmoothBoost() {
+            RENDER_RADIUS = 1; document.getElementById('opt-dist').value = "1";
+            renderer.setPixelRatio(0.8);
+            const pcx = Math.floor(camera.position.x/CHUNK_SIZE), pcz = Math.floor(camera.position.z/CHUNK_SIZE);
+            activeChunks.forEach(k => { const [cx,cz]=k.split(',').map(Number); if(Math.abs(cx-pcx)>1||Math.abs(cz-pcz)>1) unloadChunk(cx,cz); });
+            Sfx.craft(); showAlert("🚀 Super Smooth 60+ FPS Active!"); toggleSettings(false);
+        }
+        function setRenderDist(v) {
+            RENDER_RADIUS = parseInt(v);
+            const pcx = Math.floor(camera.position.x/CHUNK_SIZE), pcz = Math.floor(camera.position.z/CHUNK_SIZE);
+            for(let x=-RENDER_RADIUS; x<=RENDER_RADIUS; x++) for(let z=-RENDER_RADIUS; z<=RENDER_RADIUS; z++) genChunk(pcx+x, pcz+z);
+        }
+
+        function startGame() { isGameStarted = true; document.getElementById('home-screen').style.display = 'none'; document.body.requestPointerLock(); getAC(); Sfx.craft(); showAlert("Welcome to AbsoluteCraft! 🌲"); }
+        window.respawnHero = function() {
+            mobs.forEach(m=>scene.remove(m.mesh)); mobs.length = 0;
+            playerHealth = 5; isGameOver = false; playerVelY = 0;
+            camera.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+            document.getElementById('game-over').style.display = 'none';
+            for(let i=0; i<6; i++) spawnMob(Math.random()<0.5?'pig':'chicken');
+            updateUI(); showAlert("Respawned safely! 🏃");
+        };
+
+        // --- 🔄 GAME LOOP & MOBS UPDATE ---
+        let frames=0, lastFps=performance.now(), fps=0;
+        function animate() {
+            requestAnimationFrame(animate);
+            frames++; fps++;
+            if(performance.now() - lastFps > 1000) { document.getElementById('fps-badge').innerText = `FPS: ${fps} (WASM Active)`; fps=0; lastFps=performance.now(); }
+
+            if(!isGameStarted) {
+                camera.position.x = 20 * Math.cos(frames*0.003); camera.position.z = 20 * Math.sin(frames*0.003); camera.position.y = 16;
+                camera.lookAt(0,10,0); renderer.render(scene, camera); return;
+            }
+            if(isGameOver) { renderer.render(scene, camera); return; }
+
+            // Day / Night
+            const sAngle = (dayProgress-0.25)*Math.PI*2, sElev = -Math.sin(sAngle), isDay = sElev > 0;
+            dayProgress = (dayProgress + (isDay ? 0.00004 : 0.00025)) % 1;
+            const skyT = Math.max(0, Math.min(1, (sElev + 0.2) / 0.5));
+            const cSky = new THREE.Color(0x060a17).lerp(skyCol, skyT);
+            scene.background.lerp(cSky, 0.08); scene.fog.color.lerp(cSky, 0.08);
+
+            const cx=camera.position.x, cy=camera.position.y, cz=camera.position.z;
+            sunMesh.position.set(cx + Math.cos(sAngle)*150, cy + (-Math.sin(sAngle))*150, cz); sunMesh.lookAt(cx,cy,cz);
+            moonMesh.position.set(cx - Math.cos(sAngle)*150, cy - (-Math.sin(sAngle))*150, cz); moonMesh.lookAt(cx,cy,cz);
+            sunLight.position.copy(isDay ? sunMesh.position : moonMesh.position);
+            sunLight.intensity = isDay ? Math.max(0.1, sElev*0.9) : 0.05; ambLight.intensity = isDay ? 0.45 : 0.1;
+
+            const hrs = (dayProgress*24)%24;
+            document.getElementById('time-info').innerText = `${isDay?'☀️':'🌙'} ${Math.floor(hrs).toString().padStart(2,'0')}:${Math.floor((hrs%1)*60).toString().padStart(2,'0')} (${isDay?'Day':'Night'})`;
+
+            // Player Physics
+            if(document.pointerLockElement===document.body && !isInventoryOpen && !isSaveMenuOpen && !isSmelterOpen && !isSettingsOpen) {
+                const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion); fwd.y=0; fwd.normalize();
+                const rgt = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion); rgt.y=0; rgt.normalize();
+                const wish = new THREE.Vector3();
+                if(keys['KeyW']) wish.add(fwd); if(keys['KeyS']) wish.sub(fwd);
+                if(keys['KeyA']) wish.sub(rgt); if(keys['KeyD']) wish.add(rgt);
+                wish.normalize().multiplyScalar(0.24);
+
+                const nextX = camera.position.clone().add(new THREE.Vector3(wish.x,0,0)); if(!checkCol(nextX)) camera.position.x = nextX.x;
+                const nextZ = camera.position.clone().add(new THREE.Vector3(0,0,wish.z)); if(!checkCol(nextZ)) camera.position.z = nextZ.z;
+
+                if(keys['Space'] && canJump) { playerVelY = 0.22; canJump = false; }
+                playerVelY -= 0.012;
+                const nextY = camera.position.clone().add(new THREE.Vector3(0,playerVelY,0));
+                if(checkCol(nextY)) { if(playerVelY<0) canJump=true; playerVelY=0; } else { camera.position.y += playerVelY; canJump=false; }
+
+                const pcx = Math.floor(camera.position.x/CHUNK_SIZE), pcz = Math.floor(camera.position.z/CHUNK_SIZE);
+                if(pcx!==lastChunkX || pcz!==lastChunkZ) {
+                    lastChunkX=pcx; lastChunkZ=pcz;
+                    for(let x=-RENDER_RADIUS; x<=RENDER_RADIUS; x++) for(let z=-RENDER_RADIUS; z<=RENDER_RADIUS; z++) genChunk(pcx+x, pcz+z);
+                    activeChunks.forEach(k => { const [cx,cz]=k.split(',').map(Number); if(Math.abs(cx-pcx)>RENDER_RADIUS+1||Math.abs(cz-pcz)>RENDER_RADIUS+1) unloadChunk(cx,cz); });
+                }
+            }
+
+            // Projectiles
+            for(let i=projectiles.length-1; i>=0; i--) {
+                const p = projectiles[i]; p.m.position.add(new THREE.Vector3(p.vx, p.vy, p.vz)); p.l--;
+                spawnParticles(p.m.position.x, p.m.position.y, p.m.position.z, '#f50', 1);
+                let hit = false;
+                mobs.forEach(m => {
+                    if(m.mesh.position.distanceTo(p.m.position) < 1.4) { m.health -= 18; hit = true; }
+                });
+                if(hit || getBlock(p.m.position.x, p.m.position.y, p.m.position.z) || p.l<=0) {
+                    spawnParticles(p.m.position.x, p.m.position.y, p.m.position.z, '#f20', 10);
+                    Sfx.hit(); scene.remove(p.m); projectiles.splice(i,1);
+                }
+            }
+
+            // TNT
+            for(let i=explosives.length-1; i>=0; i--) {
+                const exp = explosives[i]; exp.fuse--; exp.scale += 0.2;
+                const s = 1.0 + Math.sin(exp.scale)*0.15; exp.m.scale.set(s,s,s);
+                if(exp.fuse%10===0) Sfx.fuse();
+                if(exp.fuse<=0) { scene.remove(exp.m); detonateExplosion(exp.x, exp.y, exp.z); explosives.splice(i,1); }
+            }
+
+            // Particles
+            for(let i=particles.length-1; i>=0; i--) {
+                const pt = particles[i]; pt.m.position.add(new THREE.Vector3(pt.vx, pt.vy, pt.vz)); pt.vy -= 0.008; pt.l--;
+                if(pt.l<=0) { scene.remove(pt.m); particles.splice(i,1); }
+            }
+
+            // --- 🧟 FULL MOBS AI UPDATE ---
+            for(let i=mobs.length-1; i>=0; i--) {
+                const mob = mobs[i];
+                mob.velY -= 0.012;
+                const nextMY = mob.mesh.position.clone().add(new THREE.Vector3(0,mob.velY,0));
+                if(checkCol(nextMY, 0.35, 1.8)) mob.velY = 0; else mob.mesh.position.y += mob.velY;
+
+                const dist = mob.mesh.position.distanceTo(camera.position);
+
+                if(mob.isPassive) {
+                    mob.wanderT++;
+                    if(mob.wanderT > 90) { mob.wanderT = 0; mob.wanderA = Math.random()*Math.PI*2; if(Math.random()<0.2) Sfx.mobCry(mob.type); }
+                    const wDir = new THREE.Vector3(Math.cos(mob.wanderA)*0.03, 0, Math.sin(mob.wanderA)*0.03);
+                    if(!checkCol(mob.mesh.position.clone().add(wDir), 0.35, 1.2)) mob.mesh.position.add(wDir);
+                    continue;
+                }
+
+                const diff = camera.position.clone().sub(mob.mesh.position); diff.y = 0;
+
+                // Hostile Mob Logic
+                if(mob.type === 'zombie' || mob.type === 'skeleton') {
+                    // Daylight Burn
+                    if(isDay && sElev > 0.25) {
+                        mob.health -= 0.05; mob.body.material.color.setHex(0xff7722);
+                        if(mob.health <= 0) { scene.remove(mob.mesh); mobs.splice(i, 1); playerXP += 10; updateUI(); continue; }
+                    }
+                    if(dist < 18) {
+                        diff.normalize().multiplyScalar(0.065);
+                        if(!checkCol(mob.mesh.position.clone().add(diff), 0.35, 1.8)) mob.mesh.position.add(diff);
+                    }
+                    if(dist < 1.4) { playerHealth -= 0.025; Sfx.mobHit(); updateUI(); }
+                } else if(mob.type === 'creeper') {
+                    if(dist < 3.5) {
+                        mob.fuse++;
+                        if(mob.fuse % 7 === 0) Sfx.fuse();
+                        mob.body.material.color.setHex(mob.fuse % 8 < 4 ? 0xffffff : 0xff0000);
+                        if(mob.fuse > 50) {
+                            detonateExplosion(mob.mesh.position.x, mob.mesh.position.y, mob.mesh.position.z);
+                            scene.remove(mob.mesh); mobs.splice(i, 1); updateUI(); continue;
+                        }
+                    } else {
+                        mob.fuse = 0; mob.body.material.color.setHex(0x48b02a);
+                        if(dist < 16) {
+                            diff.normalize().multiplyScalar(0.07);
+                            if(!checkCol(mob.mesh.position.clone().add(diff), 0.35, 1.8)) mob.mesh.position.add(diff);
+                        }
+                    }
+                }
+            }
+
+            // Nighttime Hostile Spawner
+            if(!isDay && mobs.filter(m => !m.isPassive).length < 8 && Math.random() < 0.03) {
+                const r = Math.random();
+                spawnMob(r < 0.4 ? 'zombie' : (r < 0.75 ? 'skeleton' : 'creeper'));
+            }
+
+            if(playerHealth <= 0 && !isGameOver) {
+                isGameOver = true; Sfx.hit(); document.getElementById('game-over').style.display = 'flex';
+                if(document.pointerLockElement) document.exitPointerLock();
+            }
+
+            if(frames % 6 === 0) drawRadar();
+            renderer.render(scene, camera);
+        }
+
+        updateUI();
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

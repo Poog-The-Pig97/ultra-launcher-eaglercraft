@@ -1,0 +1,460 @@
+<!-- file: minceraft.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UltraCraft: Tiered Progression Edition</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: #000; color: white; user-select: none; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
+        #health-ui { color: #ff4d4d; font-size: 28px; font-weight: bold; margin-bottom: 5px; }
+        #stats { background: rgba(0,0,0,0.6); padding: 10px 14px; border-radius: 8px; font-size: 14px; line-height: 1.6; border: 1px solid #444; }
+        #crosshair { 
+            position: absolute; top: 50%; left: 50%; width: 20px; height: 20px; 
+            border: 2px solid white; transform: translate(-50%, -50%); pointer-events: none; 
+        }
+        #alert-box {
+            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); color: #B6F500; padding: 10px 20px; border-radius: 20px;
+            font-size: 16px; font-weight: bold; border: 2px solid #B6F500; display: none;
+            pointer-events: none; transition: opacity 0.3s;
+        }
+        #hotbar {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; background: rgba(0,0,0,0.8); padding: 8px; border: 4px solid #444; gap: 8px;
+        }
+        .slot {
+            width: 50px; height: 50px; border: 3px solid #666; display: flex; 
+            flex-direction: column; justify-content: center; align-items: center; 
+            position: relative; background-color: #333; background-size: 80%; background-repeat: no-repeat; background-position: center;
+        }
+        .slot.selected { border-color: #B6F500; background-color: #555; }
+        .count { position: absolute; bottom: 2px; right: 4px; font-size: 12px; font-weight: bold; }
+        .label { position: absolute; top: -25px; width: 100px; text-align: center; font-size: 12px; background: black; display: none; }
+        .slot.selected .label { display: block; }
+        #game-over {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(80, 0, 0, 0.9); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="health-ui">♥♥♥♥♥</div>
+        <div id="stats">
+            Pickaxe: <strong id="tier-name" style="color: #B6F500;">Wood Pickaxe</strong><br>
+            Can Mine: <span id="mine-range" style="color: #ddd;">Tier 0 - 1 (Stone)</span><br>
+            Creeper Kills: <span id="kill-count">0</span>
+        </div>
+    </div>
+
+    <div id="alert-box"></div>
+    <div id="crosshair"></div>
+
+    <div id="hotbar">
+        <div class="slot selected" id="s0"><div class="label">Grass</div><div class="count">0</div></div>
+        <div class="slot" id="s1"><div class="label">Dirt</div><div class="count">0</div></div>
+        <div class="slot" id="s2"><div class="label">Stone</div><div class="count">0</div></div>
+        <div class="slot" id="s3"><div class="label">Iron Ore</div><div class="count">0</div></div>
+        <div class="slot" id="s4"><div class="label">Diamond</div><div class="count">0</div></div>
+        <div class="slot" id="s5"><div class="label">Pickaxe</div></div>
+        <div class="slot" id="s6"><div class="label">Sword</div></div>
+    </div>
+
+    <div id="game-over">
+        <h1>YOU EXPLODED!</h1>
+        <button onclick="location.reload()" style="padding: 15px 30px; font-size: 20px; cursor: pointer;">RESPAWN</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const CHUNK_SIZE = 16;
+        const worldData = new Map(); 
+        const blockMeshes = new Map();
+        const mobs = [];
+
+        const blocks = [
+            { id: 0, name: 'Grass', color: '#4ab54a', hardness: 1, minTier: 0, count: 0 },
+            { id: 1, name: 'Dirt', color: '#795548', hardness: 1, minTier: 0, count: 0 },
+            { id: 2, name: 'Stone', color: '#808080', hardness: 3, minTier: 1, count: 0 },
+            { id: 3, name: 'Iron Ore', color: '#d4d4d4', hardness: 5, minTier: 2, count: 0 },
+            { id: 4, name: 'Diamond Ore', color: '#00ffff', hardness: 10, minTier: 3, count: 0 },
+            { id: 5, name: 'Wood', color: '#a0522d', hardness: 2, minTier: 0, count: 5 }
+        ];
+
+        const tools = [
+            { name: 'Wood Pickaxe', tier: 0, maxMineTier: 1, maxTargetName: 'Stone' },
+            { name: 'Stone Pickaxe', tier: 1, maxMineTier: 2, maxTargetName: 'Iron Ore' },
+            { name: 'Iron Pickaxe', tier: 2, maxMineTier: 3, maxTargetName: 'Diamond Ore' },
+            { name: 'Diamond Pickaxe', tier: 3, maxMineTier: 3, maxTargetName: 'Everything' }
+        ];
+
+        let currentToolTier = 0;
+        let selectedIdx = 0; 
+        let playerHealth = 5;
+        let kills = 0;
+        let isGameOver = false;
+
+        // --- THREE.JS SETUP ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 5, 45);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.rotation.order = 'YXZ';
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const light = new THREE.DirectionalLight(0xffffff, 0.5);
+        light.position.set(10, 20, 10);
+        scene.add(light);
+
+        function getTexture(color) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = color;
+            ctx.fillRect(0,0,16,16);
+            ctx.fillStyle = 'rgba(0,0,0,0.1)';
+            for(let i=0; i<15; i++) ctx.fillRect(Math.random()*16, Math.random()*16, 2, 2);
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter;
+            return tex;
+        }
+        blocks.forEach(b => b.mat = new THREE.MeshLambertMaterial({ map: getTexture(b.color) }));
+
+        // --- WORLD & PHYSICS ---
+        const playerSize = 0.3;
+        function isSolid(x, y, z) {
+            return blockMeshes.has(`${Math.round(x)},${Math.round(y)},${Math.round(z)}`);
+        }
+
+        function checkCollision(pos, sizeX, sizeY) {
+            for(let x = -sizeX; x <= sizeX; x += sizeX*2) {
+                for(let z = -sizeX; z <= sizeX; z += sizeX*2) {
+                    if (isSolid(pos.x + x, pos.y - sizeY, pos.z + z)) return true;
+                    if (isSolid(pos.x + x, pos.y - (sizeY/2), pos.z + z)) return true;
+                }
+            }
+            return false;
+        }
+
+        function addBlock(x, y, z, typeIdx) {
+            const key = `${x},${y},${z}`;
+            if (blockMeshes.has(key)) return;
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), blocks[typeIdx].mat);
+            mesh.position.set(x, y, z);
+            mesh.blockType = typeIdx;
+            scene.add(mesh);
+            blockMeshes.set(key, mesh);
+        }
+
+        function generateChunks(px, pz) {
+            const cx = Math.floor(px / CHUNK_SIZE);
+            const cz = Math.floor(pz / CHUNK_SIZE);
+            for(let x = -1; x <= 1; x++) {
+                for(let z = -1; z <= 1; z++) {
+                    const chunkKey = `${cx+x},${cz+z}`;
+                    if (!worldData.has(chunkKey)) {
+                        worldData.set(chunkKey, true);
+                        for(let bx=0; bx<CHUNK_SIZE; bx++) {
+                            for(let bz=0; bz<CHUNK_SIZE; bz++) {
+                                const rx = (cx+x)*CHUNK_SIZE + bx;
+                                const rz = (cz+z)*CHUNK_SIZE + bz;
+                                const h = Math.floor(Math.sin(rx/6)*2 + Math.cos(rz/6)*2);
+                                for(let y=-2; y<=h; y++) {
+                                    let tid = 2; // stone
+                                    if (y === h) tid = 0;
+                                    else if (y > h-2) tid = 1;
+                                    if (y < h-2 && Math.random() > 0.94) tid = 3; // Iron Ore
+                                    if (y < -1 && Math.random() > 0.98) tid = 4; // Diamond Ore
+                                    addBlock(rx, y, rz, tid);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- NOTIFICATIONS ---
+        let alertTimeout;
+        function showAlert(msg) {
+            const el = document.getElementById('alert-box');
+            el.innerText = msg;
+            el.style.display = 'block';
+            clearTimeout(alertTimeout);
+            alertTimeout = setTimeout(() => { el.style.display = 'none'; }, 2000);
+        }
+
+        // --- COMBAT & MOBS ---
+        function spawnMob() {
+            const mat = new THREE.MeshLambertMaterial({color: 0x228b22});
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.8, 0.7), mat);
+            mesh.position.set(camera.position.x + (Math.random()-0.5)*30, 10, camera.position.z + (Math.random()-0.5)*30);
+            scene.add(mesh);
+            mobs.push({
+                mesh: mesh,
+                health: 10,
+                lastHit: 0,
+                velY: 0,
+                primeCounter: 0,
+                isPriming: false
+            });
+        }
+
+        function handleCombat(isSword) {
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const mobMeshes = mobs.map(m => m.mesh);
+            const intersects = ray.intersectObjects(mobMeshes);
+
+            if (intersects.length > 0) {
+                const hit = intersects[0];
+                const mobData = mobs.find(m => m.mesh === hit.object);
+                if (mobData && Date.now() - mobData.lastHit > 400) {
+                    const damage = isSword ? 5 : (selectedIdx === 5 ? 2 : 1);
+                    mobData.health -= damage;
+                    mobData.lastHit = Date.now();
+                    
+                    const dir = mobData.mesh.position.clone().sub(camera.position).normalize();
+                    mobData.mesh.position.add(dir.multiplyScalar(0.5));
+                    
+                    mobData.mesh.material.color.setHex(0xff0000);
+                    setTimeout(() => { if(mobData.mesh) mobData.mesh.material.color.setHex(0x228b22); }, 100);
+
+                    if (mobData.health <= 0) {
+                        removeMob(mobData);
+                        kills++;
+                        showAlert("Creeper Defeated!");
+                        updateUI();
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function removeMob(m) {
+            scene.remove(m.mesh);
+            const idx = mobs.indexOf(m);
+            if(idx > -1) mobs.splice(idx, 1);
+        }
+
+        // --- INPUTS & MINING LOGIC ---
+        camera.position.set(0, 5, 0);
+        let move = { f: false, b: false, l: false, r: false };
+        let playerVelY = 0;
+        let canJump = false;
+
+        document.addEventListener('mousedown', e => {
+            if (document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
+                return;
+            }
+            const hitMob = handleCombat(selectedIdx === 6);
+            if (hitMob) return;
+
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0,0), camera);
+            const intersects = ray.intersectObjects(Array.from(blockMeshes.values()));
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const block = intersect.object;
+                const p = block.position;
+
+                if (e.button === 0) { // Left: Mine
+                    const data = blocks[block.blockType];
+                    const isPickaxe = selectedIdx === 5;
+                    const maxTierCanMine = isPickaxe ? (currentToolTier + 1) : 0;
+
+                    if (data.minTier <= maxTierCanMine) {
+                        // Mine successfully!
+                        data.count++;
+                        scene.remove(block);
+                        blockMeshes.delete(`${p.x},${p.y},${p.z}`);
+
+                        // Tool Upgrade Check when using pickaxe
+                        if (isPickaxe) {
+                            if (data.name === 'Stone' && currentToolTier < 1) {
+                                currentToolTier = 1;
+                                showAlert("UPGRADE! Crafted Stone Pickaxe!");
+                            } else if (data.name === 'Iron Ore' && currentToolTier < 2) {
+                                currentToolTier = 2;
+                                showAlert("UPGRADE! Crafted Iron Pickaxe!");
+                            } else if (data.name === 'Diamond Ore' && currentToolTier < 3) {
+                                currentToolTier = 3;
+                                showAlert("MAX UPGRADE! Crafted Diamond Pickaxe!");
+                            }
+                        }
+                    } else {
+                        // Tool tier is too low!
+                        showAlert(`Tool Tier too low! Need ${blocks.find(b => b.minTier === data.minTier - 1)?.name || 'higher'} pickaxe!`);
+                    }
+                } else if (e.button === 2) { // Right: Place
+                    if (selectedIdx < 5 && blocks[selectedIdx].count > 0) {
+                        const np = block.position.clone().add(intersect.face.normal);
+                        addBlock(Math.round(np.x), Math.round(np.y), Math.round(np.z), selectedIdx);
+                        blocks[selectedIdx].count--;
+                    }
+                }
+                updateUI();
+            }
+        });
+
+        window.addEventListener('keydown', e => {
+            if (e.code === 'KeyW') move.f = true;
+            if (e.code === 'KeyS') move.b = true;
+            if (e.code === 'KeyA') move.l = true;
+            if (e.code === 'KeyD') move.r = true;
+            if (e.code === 'Space' && canJump) { playerVelY = 0.15; canJump = false; }
+            if (e.key >= 1 && e.key <= 7) selectedIdx = e.key - 1;
+            updateUI();
+        });
+
+        window.addEventListener('keyup', e => {
+            if (e.code === 'KeyW') move.f = false;
+            if (e.code === 'KeyS') move.b = false;
+            if (e.code === 'KeyA') move.l = false;
+            if (e.code === 'KeyD') move.r = false;
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (document.pointerLockElement === document.body) {
+                camera.rotation.y -= e.movementX * 0.002;
+                camera.rotation.x -= e.movementY * 0.002;
+                camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+            }
+        });
+
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        function updateUI() {
+            document.getElementById('health-ui').innerText = "♥♥♥♥♥".slice(0, Math.max(0, Math.floor(playerHealth)));
+            const activeTool = tools[currentToolTier];
+            document.getElementById('tier-name').innerText = activeTool.name;
+            document.getElementById('mine-range').innerText = `Tier 0 - ${activeTool.maxMineTier} (${activeTool.maxTargetName})`;
+            document.getElementById('kill-count').innerText = kills;
+
+            for(let i=0; i<7; i++) {
+                const s = document.getElementById(`s${i}`);
+                s.className = i === selectedIdx ? 'slot selected' : 'slot';
+                if(i < 5) {
+                    s.querySelector('.count').innerText = blocks[i].count;
+                    s.style.backgroundColor = blocks[i].color;
+                } else if (i === 5) {
+                    // Pickaxe Color matches Tier
+                    const pickColors = ["#8B4513", "#808080", "#d4d4d4", "#00ffff"];
+                    s.style.backgroundColor = pickColors[currentToolTier];
+                } else {
+                    s.style.backgroundColor = "#aaf";
+                }
+            }
+        }
+
+        // --- LOOP ---
+        function animate() {
+            requestAnimationFrame(animate);
+            if(isGameOver) return;
+
+            if (document.pointerLockElement === document.body) {
+                const forward = new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);
+                forward.y = 0; forward.normalize();
+                const right = new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+                right.y = 0; right.normalize();
+
+                const wishDir = new THREE.Vector3();
+                if (move.f) wishDir.add(forward);
+                if (move.b) wishDir.sub(forward);
+                if (move.l) wishDir.sub(right);
+                if (move.r) wishDir.add(right);
+                wishDir.normalize().multiplyScalar(0.1);
+
+                const nextX = camera.position.clone().add(new THREE.Vector3(wishDir.x, 0, 0));
+                if (!checkCollision(nextX, 0.3, 1.5)) camera.position.x = nextX.x;
+                const nextZ = camera.position.clone().add(new THREE.Vector3(0, 0, wishDir.z));
+                if (!checkCollision(nextZ, 0.3, 1.5)) camera.position.z = nextZ.z;
+
+                playerVelY -= 0.008;
+                const nextY = camera.position.clone().add(new THREE.Vector3(0, playerVelY, 0));
+                if (checkCollision(nextY, 0.3, 1.5)) {
+                    if (playerVelY < 0) canJump = true;
+                    playerVelY = 0;
+                } else {
+                    camera.position.y += playerVelY;
+                    canJump = false;
+                }
+                generateChunks(camera.position.x, camera.position.z);
+            }
+
+            // MOB LOGIC
+            mobs.forEach(m => {
+                m.velY -= 0.008;
+                const mNextY = m.mesh.position.clone().add(new THREE.Vector3(0, m.velY, 0));
+                if (checkCollision(mNextY, 0.35, 1.8)) {
+                    m.velY = 0;
+                } else {
+                    m.mesh.position.y += m.velY;
+                }
+
+                const diff = camera.position.clone().sub(m.mesh.position);
+                diff.y = 0;
+                const dist = diff.length();
+
+                if (dist < 3) {
+                    m.isPriming = true;
+                    m.primeCounter++;
+                    
+                    if (m.primeCounter % 10 < 5) m.mesh.material.color.setHex(0xffffff);
+                    else m.mesh.material.color.setHex(0xff0000);
+                    
+                    if (m.primeCounter > 80) {
+                        if (dist < 4) playerHealth -= 2;
+                        removeMob(m);
+                        updateUI();
+                    }
+                } else {
+                    m.isPriming = false;
+                    m.primeCounter = 0;
+                    m.mesh.material.color.setHex(0x228b22);
+                    
+                    if (dist < 15) {
+                        diff.normalize().multiplyScalar(0.04);
+                        if(!isSolid(m.mesh.position.x + diff.x, m.mesh.position.y - 0.5, m.mesh.position.z + diff.z)) {
+                            m.mesh.position.x += diff.x;
+                            m.mesh.position.z += diff.z;
+                        }
+                    }
+                }
+            });
+
+            if (playerHealth <= 0) {
+                isGameOver = true;
+                document.getElementById('game-over').style.display = 'flex';
+                document.exitPointerLock();
+            }
+
+            if (Math.random() > 0.995 && mobs.length < 8) spawnMob();
+
+            renderer.render(scene, camera);
+        }
+
+        generateChunks(0,0);
+        updateUI();
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

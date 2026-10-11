@@ -1,0 +1,1810 @@
+<!-- file: index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AbsoluteCraft: Bed, Smelter & Long Days</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; overflow: hidden; font-family: 'Courier New', Courier, monospace; background: #000; color: #fff; user-select: none; }
+        
+        #hud {
+            position: absolute; top: 16px; left: 16px; pointer-events: none; z-index: 10;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .hud-card {
+            background: rgba(10, 10, 20, 0.85); border: 2px solid #556; border-radius: 8px;
+            padding: 8px 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+        }
+        #health-bar { color: #ff3344; font-size: 22px; font-weight: bold; letter-spacing: 2px; }
+        #xp-bar-container { width: 180px; height: 10px; background: #222; border: 1px solid #777; border-radius: 5px; overflow: hidden; margin-top: 4px; }
+        #xp-bar-fill { width: 0%; height: 100%; background: #33ff66; transition: width 0.1s; }
+        #time-info { font-size: 13px; color: #ffdd66; font-weight: bold; }
+        #engine-badge { font-size: 11px; color: #33ffaa; font-weight: bold; }
+        #status-text { font-size: 12px; color: #aaa; }
+
+        #hud-top-right {
+            position: absolute; top: 16px; right: 16px; z-index: 15;
+            display: flex; gap: 8px;
+        }
+        .hud-btn {
+            background: rgba(20, 25, 40, 0.85); border: 2px solid #6b7c96; border-radius: 8px;
+            color: #fff; font-family: inherit; font-size: 12px; font-weight: bold;
+            padding: 8px 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            transition: all 0.15s;
+        }
+        .hud-btn:hover { background: #2b75e2; border-color: #77aaff; transform: translateY(-2px); }
+
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; width: 16px; height: 16px;
+            transform: translate(-50%, -50%); pointer-events: none; z-index: 10;
+        }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.85); }
+        #crosshair::before { top: 7px; left: 0; width: 16px; height: 2px; }
+        #crosshair::after { top: 0; left: 7px; width: 2px; height: 16px; }
+
+        /* HOTBAR */
+        #hotbar {
+            position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+            display: flex; background: rgba(15, 15, 25, 0.9); padding: 6px; border: 3px solid #666;
+            border-radius: 8px; gap: 6px; z-index: 10;
+        }
+        .slot {
+            width: 48px; height: 48px; border: 2px solid #444; border-radius: 5px;
+            display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-end;
+            position: relative; background-color: #222; font-size: 12px; font-weight: bold; padding: 2px 4px;
+            cursor: pointer; transition: transform 0.05s;
+        }
+        .slot.selected { border-color: #ffe600; background-color: #444; box-shadow: 0 0 10px #ffe600; }
+        .slot .key-num { position: absolute; top: 2px; left: 4px; font-size: 10px; color: #fff; text-shadow: 1px 1px #000; }
+        .slot .item-icon {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 28px; height: 28px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25);
+            display: flex; justify-content: center; align-items: center; font-size: 14px;
+        }
+        .slot .item-label {
+            position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
+            background: #111; color: #fff; padding: 2px 8px; font-size: 11px;
+            border-radius: 4px; border: 1px solid #555; white-space: nowrap; display: none; pointer-events: none;
+        }
+        .slot.selected .item-label { display: block; }
+        .slot.drag-over { border-color: #33ff88 !important; background-color: #284428 !important; }
+
+        #instructions {
+            position: absolute; bottom: 82px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.65); padding: 5px 14px; border-radius: 12px; font-size: 12px;
+            color: #ddd; pointer-events: none; z-index: 10; text-align: center;
+        }
+
+        #alert-box {
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%);
+            background: rgba(10,25,10,0.92); color: #44ff88; padding: 8px 22px; border-radius: 20px;
+            font-size: 15px; font-weight: bold; border: 2px solid #44ff88; display: none;
+            pointer-events: none; z-index: 25; text-shadow: 0 0 5px #44ff88;
+        }
+
+        /* MODALS */
+        .modal-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 5, 15, 0.85); display: none; justify-content: center;
+            align-items: center; z-index: 100;
+        }
+        .inv-window {
+            background: #181924; border: 3px solid #6b7c96; border-radius: 12px;
+            padding: 22px; display: flex; gap: 24px; box-shadow: 0 12px 40px rgba(0,0,0,0.85);
+            max-width: 900px;
+        }
+        .inv-panel-title { font-size: 16px; font-weight: bold; color: #ffe600; margin-bottom: 12px; text-align: center; }
+        .inv-grid {
+            display: grid; grid-template-columns: repeat(9, 48px); gap: 6px; background: #0f1017;
+            padding: 10px; border-radius: 8px; border: 2px solid #33394a;
+        }
+        .inv-section-title { font-size: 11px; color: #889; margin: 10px 0 4px 0; text-transform: uppercase; font-weight: bold; }
+
+        .recipe-list { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; width: 290px; padding-right: 4px; }
+        .recipe-item {
+            background: #232533; border: 2px solid #3a3d52; border-radius: 6px; padding: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .recipe-info b { color: #fff; font-size: 13px; }
+        .recipe-info div { font-size: 11px; color: #aaa; margin-top: 2px; }
+        
+        .craft-btn, .action-btn {
+            background: #2b75e2; color: #fff; border: 1px solid #77aaff; border-radius: 6px;
+            padding: 8px 14px; font-family: inherit; font-size: 12px; font-weight: bold; cursor: pointer;
+            transition: background 0.15s;
+        }
+        .craft-btn:hover, .action-btn:hover { background: #408cff; }
+        .craft-btn:disabled { background: #444; border-color: #666; color: #777; cursor: not-allowed; }
+
+        /* SAVE MENU LAYOUT */
+        .save-card {
+            background: #212333; border: 2px solid #4a5270; border-radius: 10px;
+            padding: 14px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 10px;
+        }
+        .save-card h3 { margin: 0; color: #33ffaa; font-size: 14px; }
+        .save-card p { margin: 0; font-size: 12px; color: #bbb; line-height: 1.4; }
+        .slot-row {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #181924; padding: 8px 12px; border-radius: 6px; border: 1px solid #33394a;
+        }
+        .btn-group { display: flex; gap: 6px; }
+
+        /* GAME OVER MODAL */
+        #game-over {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(40, 0, 0, 0.92); display: none; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 200;
+        }
+        #game-over h1 { font-size: 50px; color: #ff2233; margin-bottom: 8px; }
+        #respawn-btn {
+            padding: 14px 34px; font-size: 18px; font-weight: bold; font-family: inherit;
+            cursor: pointer; background: #ffe600; color: #000; border: 3px solid #fff;
+            border-radius: 8px; margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="hud-card">
+            <div id="health-bar">♥♥♥♥♥</div>
+            <div style="font-size: 11px; color: #bbb; margin-top: 3px;">EXPERIENCE</div>
+            <div id="xp-bar-container"><div id="xp-bar-fill"></div></div>
+        </div>
+        <div class="hud-card">
+            <div id="time-info">☀️ 12:00 (Day)</div>
+            <div id="engine-badge">⚡ BED, SMELTER & LONG DAYS</div>
+            <div id="status-text">Pickaxe: Wood Pickaxe</div>
+            <div id="pos-info" style="font-size: 11px; color: #888; margin-top: 3px;">X: 0 Y: 0 Z: 0</div>
+        </div>
+    </div>
+
+    <div id="hud-top-right">
+        <button class="hud-btn" onclick="toggleSaveMenu(true)">💾 SAVES & FILES [M]</button>
+    </div>
+
+    <div id="alert-box"></div>
+    <div id="crosshair"></div>
+    <div id="instructions">[WASD] Move | [SPACE] Jump | [1-9] Hotbar | [E] Backpack/Forge | [M] Saves | [R-Click Bed] Sleep | [R-Click Smelter] Smelt</div>
+
+    <div id="hotbar"></div>
+
+    <!-- Drag & Drop Inventory and Forge Modal -->
+    <div id="inventory-screen" class="modal-screen">
+        <div class="inv-window">
+            <div>
+                <div class="inv-panel-title">🎒 BACKPACK & HOTBAR</div>
+                
+                <div class="inv-section-title">Storage (Drag & Drop anywhere!)</div>
+                <div class="inv-grid" id="backpack-grid"></div>
+
+                <div class="inv-section-title">Active Hotbar (Keys 1-9)</div>
+                <div class="inv-grid" id="inv-hotbar-grid"></div>
+
+                <button class="craft-btn" style="width: 100%; margin-top: 14px; background: #445;" onclick="toggleInventory(false)">CLOSE [E / ESC]</button>
+            </div>
+
+            <div style="border-left: 2px solid #33394a; padding-left: 20px;">
+                <div class="inv-panel-title">🛠️ SURVIVAL FORGE</div>
+                <div class="recipe-list" id="recipe-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ore Smelter Modal -->
+    <div id="smelter-screen" class="modal-screen">
+        <div class="inv-window" style="flex-direction: column; width: 420px;">
+            <div class="inv-panel-title" style="color: #ff9933;">🔥 ORE SMELTER</div>
+            <p style="text-align: center; font-size: 12px; color: #bbb; margin: 0 0 10px 0;">Use Coal fuel to melt raw ores into pure ingots & glass!</p>
+            <div class="recipe-list" id="smelter-recipe-list" style="width: 100%; max-height: 280px;"></div>
+            <button class="craft-btn" style="width: 100%; margin-top: 14px; background: #445;" onclick="toggleSmelter(false)">CLOSE [ESC]</button>
+        </div>
+    </div>
+
+    <!-- Save & Load World Modal (IndexedDB + Files) -->
+    <div id="save-menu-screen" class="modal-screen">
+        <div class="inv-window" style="flex-direction: column; width: 480px;">
+            <div class="inv-panel-title">💾 WORLD SAVES MANAGER</div>
+
+            <!-- IndexedDB Browser Slots -->
+            <div class="save-card">
+                <h3>⚡ Browser Storage (IndexedDB)</h3>
+                <p>Instant save slots stored directly inside your browser memory.</p>
+                <div id="idb-slots-container" style="display: flex; flex-direction: column; gap: 6px;"></div>
+            </div>
+
+            <!-- File Export / Import -->
+            <div class="save-card">
+                <h3>📁 .ABSOLUTELYCRAFTY File Saves</h3>
+                <p>Download your world to your computer or load a file from your hard drive.</p>
+                <div style="display: flex; gap: 8px;">
+                    <button class="action-btn" style="flex: 1; background: #2b75e2; border-color: #77aaff;" onclick="exportCraftyFile()">📥 EXPORT FILE</button>
+                    <label class="action-btn" style="flex: 1; background: #6a2be2; border-color: #a477ff; text-align: center; cursor: pointer;">
+                        📤 IMPORT FILE
+                        <input type="file" id="file-importer" accept=".absolutelycrafty,application/json" style="display: none;" onchange="importCraftyFile(event)">
+                    </label>
+                </div>
+            </div>
+
+            <button class="action-btn" style="background: #444b59; border-color: #778; width: 100%;" onclick="toggleSaveMenu(false)">BACK TO GAME [ESC]</button>
+        </div>
+    </div>
+
+    <!-- Game Over Modal -->
+    <div id="game-over">
+        <h1>YOU WERE OVERCOME</h1>
+        <p style="color: #ddd;">The wild proved too dangerous...</p>
+        <button id="respawn-btn" onclick="respawnPlayer(event)">RESPAWN HERO</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // ==========================================
+        // ⚡ WEBASSEMBLY (WASM) FAST MATH ENGINE
+        // ==========================================
+        const wasmBytecode = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            0x01, 0x0c, 0x02,
+            0x60, 0x06, 0x7d, 0x7d, 0x7d, 0x7d, 0x7d, 0x7d, 0x01, 0x7d,
+            0x60, 0x02, 0x7d, 0x7d, 0x01, 0x7d,
+            0x03, 0x03, 0x02, 0x00, 0x01,
+            0x07, 0x17, 0x02,
+            0x06, 0x64, 0x69, 0x73, 0x74, 0x53, 0x71, 0x00, 0x00,
+            0x08, 0x66, 0x61, 0x73, 0x74, 0x48, 0x61, 0x73, 0x68, 0x00, 0x01,
+            0x0a, 0x2e, 0x02,
+            0x1d, 0x00,
+            0x20, 0x00, 0x20, 0x03, 0x93, 0x22, 0x00, 0x20, 0x00, 0x94,
+            0x20, 0x01, 0x20, 0x04, 0x93, 0x22, 0x01, 0x20, 0x01, 0x94, 0x92,
+            0x20, 0x02, 0x20, 0x05, 0x93, 0x22, 0x02, 0x20, 0x02, 0x94, 0x92,
+            0x0b,
+            0x0d, 0x00,
+            0x20, 0x00, 0x43, 0x00, 0x00, 0x80, 0x3f, 0x92, 0x20, 0x01, 0x94, 0x0b
+        ]);
+
+        let wasmModule = null;
+        try {
+            const compiled = new WebAssembly.Module(wasmBytecode);
+            const instance = new WebAssembly.Instance(compiled, {});
+            wasmModule = instance.exports;
+        } catch(e) {
+            wasmModule = {
+                distSq: (x1, y1, z1, x2, y2, z2) => {
+                    const dx = x1 - x2, dy = y1 - y2, dz = z1 - z2;
+                    return dx*dx + dy*dy + dz*dz;
+                },
+                fastHash: (x, z) => (x + 1.0) * z
+            };
+        }
+
+        // ==========================================
+        // 🔊 SOUND EFFECTS
+        // ==========================================
+        let audioCtx = null;
+        function getAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        const Sound = {
+            tone(freq, dur, type='square', vol=0.15) {
+                try {
+                    const ctx = getAudio();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + dur);
+                } catch(e){}
+            },
+            noise(dur, filterFreq=400, vol=0.25) {
+                try {
+                    const ctx = getAudio();
+                    const bSize = Math.floor(ctx.sampleRate * dur);
+                    const buf = ctx.createBuffer(1, bSize, ctx.sampleRate);
+                    const data = buf.getChannelData(0);
+                    for (let i = 0; i < bSize; i++) data[i] = Math.random() * 2 - 1;
+                    const src = ctx.createBufferSource();
+                    src.buffer = buf;
+                    const filter = ctx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.setValueAtTime(filterFreq, ctx.currentTime);
+                    filter.frequency.exponentialRampToValueAtTime(30, ctx.currentTime + dur);
+                    const gain = ctx.createGain();
+                    gain.gain.setValueAtTime(vol, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+                    src.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(ctx.destination);
+                    src.start();
+                    src.stop(ctx.currentTime + dur);
+                } catch(e){}
+            },
+            mine() { this.tone(120, 0.04, 'triangle', 0.18); },
+            place() { this.tone(360, 0.04, 'sine', 0.2); },
+            swing() { this.noise(0.05, 900, 0.1); },
+            hit() { this.tone(150, 0.09, 'sawtooth', 0.22); },
+            zombie() { this.tone(75, 0.2, 'sawtooth', 0.18); },
+            zombieBurn() { this.noise(0.08, 1400, 0.1); },
+            fuse() { this.noise(0.04, 1200, 0.12); },
+            explode() { this.noise(0.4, 300, 0.5); },
+            craft() { [440, 554, 659].forEach((f, i) => setTimeout(() => this.tone(f, 0.06, 'triangle', 0.2), i * 45)); },
+            sleep() { [392, 523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 0.18, 'sine', 0.2), i * 110)); },
+            smelt() { this.noise(0.3, 800, 0.25); [300, 450, 600].forEach((f, i) => setTimeout(() => this.tone(f, 0.06, 'triangle', 0.15), i * 50)); },
+            levelup() { [330, 440, 550, 660, 880].forEach((f, i) => setTimeout(() => this.tone(f, 0.07, 'square', 0.15), i * 50)); },
+            hurt() { this.tone(90, 0.15, 'sawtooth', 0.25); },
+            drag() { this.tone(600, 0.03, 'sine', 0.1); },
+            save() { [350, 500, 750].forEach((f, i) => setTimeout(() => this.tone(f, 0.08, 'triangle', 0.18), i * 60)); },
+            load() { [750, 500, 350].forEach((f, i) => setTimeout(() => this.tone(f, 0.08, 'triangle', 0.18), i * 60)); },
+            gameOver() { [220, 196, 174, 130].forEach((f, i) => setTimeout(() => this.tone(f, 0.2, 'sawtooth', 0.25), i * 140)); }
+        };
+
+        // ==========================================
+        // 🧱 ITEM & BLOCK ROSTER
+        // ==========================================
+        function createPixelTexture(c1, c2, dots=12, border=null) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = c1; ctx.fillRect(0,0,16,16);
+            ctx.fillStyle = c2;
+            for(let i=0; i<dots; i++) {
+                ctx.fillRect(Math.floor(Math.random()*15), Math.floor(Math.random()*15), 1+Math.random()*2, 1+Math.random()*2);
+            }
+            if (border) {
+                ctx.strokeStyle = border;
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0,0,16,16);
+            }
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter;
+            tex.needsUpdate = true;
+            return tex;
+        }
+
+        function createBedTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#b71c1c'; ctx.fillRect(0,0,16,16); // Red blanket
+            ctx.fillStyle = '#f5f5f5'; ctx.fillRect(1, 1, 14, 5); // White pillow
+            ctx.fillStyle = '#5d4037'; ctx.fillRect(0, 14, 16, 2); // Wood frame bottom
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter;
+            return tex;
+        }
+
+        function createSmelterTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 16; canvas.height = 16;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#555555'; ctx.fillRect(0,0,16,16);
+            ctx.fillStyle = '#222222'; ctx.fillRect(4, 5, 8, 7); // Furnace door
+            ctx.fillStyle = '#ff6600'; ctx.fillRect(5, 7, 6, 4); // Glowing fire
+            ctx.fillStyle = '#ffff00'; ctx.fillRect(6, 8, 4, 2); // Bright coals
+            const tex = new THREE.CanvasTexture(canvas);
+            tex.magFilter = THREE.NearestFilter;
+            return tex;
+        }
+
+        const ITEM_BY_ID = {};
+        const ITEMS = {
+            GRASS: { id: 0, name: 'Grass Block', isBlock: true, color: '#44aa33', icon: '🌿', tex: createPixelTexture('#44aa33', '#338822') },
+            DIRT: { id: 1, name: 'Dirt', isBlock: true, color: '#795548', icon: '🟤', tex: createPixelTexture('#795548', '#5d4037') },
+            STONE: { id: 2, name: 'Stone', isBlock: true, minTier: 1, color: '#888888', icon: '🪨', tex: createPixelTexture('#888888', '#666666') },
+            SAND: { id: 3, name: 'Sand', isBlock: true, color: '#e0c878', icon: '⏳', tex: createPixelTexture('#e0c878', '#d0b868') },
+            WOOD: { id: 4, name: 'Wood Log', isBlock: true, color: '#8d5524', icon: '🪵', tex: createPixelTexture('#8d5524', '#663d14') },
+            PLANKS: { id: 5, name: 'Wood Planks', isBlock: true, color: '#b5793e', icon: '📦', tex: createPixelTexture('#b5793e', '#8a5928', 8, '#593a1a') },
+            LEAVES: { id: 6, name: 'Leaves', isBlock: true, color: '#2e7d32', icon: '🍃', tex: createPixelTexture('#2e7d32', '#1b5e20') },
+            SNOW: { id: 7, name: 'Snow Block', isBlock: true, color: '#f0f4f8', icon: '❄️', tex: createPixelTexture('#f0f4f8', '#d9e2ec') },
+            GLASS: { id: 8, name: 'Glass Block', isBlock: true, color: '#aaddee', icon: '🪟', tex: createPixelTexture('#a0d8ef', '#ffffff', 4, '#ffffff') },
+            BRICK: { id: 9, name: 'Red Brick', isBlock: true, minTier: 1, color: '#993d3d', icon: '🧱', tex: createPixelTexture('#993d3d', '#551d1d', 14, '#331111') },
+            OBSIDIAN: { id: 10, name: 'Obsidian / Bedrock', isBlock: true, minTier: 3, color: '#160e29', icon: '⬛', tex: createPixelTexture('#160e29', '#3b1c6e', 10) },
+
+            COAL_ORE: { id: 11, name: 'Coal Ore', isBlock: true, minTier: 1, color: '#333333', icon: '⚫', tex: createPixelTexture('#777777', '#222222', 22) },
+            IRON_ORE: { id: 12, name: 'Iron Ore', isBlock: true, minTier: 2, color: '#d8af93', icon: '⚪', tex: createPixelTexture('#777777', '#d8af93', 22) },
+            GOLD_ORE: { id: 13, name: 'Gold Ore', isBlock: true, minTier: 2, color: '#ffd700', icon: '🟡', tex: createPixelTexture('#777777', '#ffd700', 22) },
+            DIAMOND_ORE: { id: 14, name: 'Diamond Ore', isBlock: true, minTier: 3, color: '#00ffff', icon: '💎', tex: createPixelTexture('#777777', '#00ffff', 22) },
+            EMERALD_ORE: { id: 15, name: 'Emerald Ore', isBlock: true, minTier: 2, color: '#00ff66', icon: '❇️', tex: createPixelTexture('#777777', '#00ff66', 22) },
+            REDSTONE_ORE: { id: 16, name: 'Redstone Ore', isBlock: true, minTier: 2, color: '#ff2222', icon: '🔴', tex: createPixelTexture('#777777', '#ff2222', 22) },
+            AMETHYST: { id: 17, name: 'Amethyst Crystal', isBlock: true, minTier: 2, color: '#b966ff', icon: '🔮', tex: createPixelTexture('#b966ff', '#8822ee', 16) },
+            GLOWSTONE: { id: 18, name: 'Glowstone', isBlock: true, isLight: true, color: '#ffee77', icon: '💡', tex: createPixelTexture('#ffee77', '#ffaa22', 24) },
+            TORCH: { id: 19, name: 'Torch', isBlock: true, isLight: true, color: '#ffaa00', icon: '🕯️', tex: createPixelTexture('#ffaa00', '#ff3300') },
+
+            APPLE: { id: 20, name: 'Red Apple', isFood: true, heal: 2, color: '#ff3344', icon: '🍎' },
+            GOLDEN_APPLE: { id: 21, name: 'Golden Apple', isFood: true, heal: 5, color: '#ffd700', icon: '🍏' },
+            BREAD: { id: 22, name: 'Baked Bread', isFood: true, heal: 3, color: '#c49a45', icon: '🍞' },
+
+            SWORD_WOOD: { id: 23, name: 'Wood Sword', isWeapon: true, dmg: 3, color: '#8d5524', icon: '🗡️' },
+            SWORD_IRON: { id: 24, name: 'Iron Sword', isWeapon: true, dmg: 6, color: '#d8af93', icon: '⚔️' },
+            SWORD_GOLD: { id: 25, name: 'Gold Sword', isWeapon: true, dmg: 8, color: '#ffd700', icon: '✨' },
+            SWORD_DIAMOND: { id: 26, name: 'Diamond Sword', isWeapon: true, dmg: 12, color: '#00ffff', icon: '🔱' },
+            SWORD_EMERALD: { id: 27, name: 'Emerald Blade', isWeapon: true, dmg: 15, color: '#00ff66', icon: '⚡' },
+
+            STICK: { id: 28, name: 'Wooden Stick', isMat: true, color: '#7a4b1c', icon: '🥢' },
+            IRON_INGOT: { id: 29, name: 'Iron Ingot', isMat: true, color: '#e0e0e0', icon: '🪙' },
+            GOLD_INGOT: { id: 30, name: 'Gold Ingot', isMat: true, color: '#ffd700', icon: '🧈' },
+
+            BED: { id: 31, name: 'Cozy Bed', isBlock: true, isBed: true, color: '#d32f2f', icon: '🛏️', tex: createBedTexture() },
+            SMELTER: { id: 32, name: 'Ore Smelter', isBlock: true, isSmelter: true, color: '#555555', icon: '🔥', tex: createSmelterTexture() }
+        };
+
+        Object.values(ITEMS).forEach(item => { ITEM_BY_ID[item.id] = item; });
+
+        const TOOL_TIERS = [
+            { name: 'Wood Pickaxe', tier: 0, maxMineTier: 1 },
+            { name: 'Stone Pickaxe', tier: 1, maxMineTier: 2 },
+            { name: 'Iron Pickaxe', tier: 2, maxMineTier: 3 },
+            { name: 'Diamond Pickaxe', tier: 3, maxMineTier: 3 }
+        ];
+
+        let hotbarData = new Array(9).fill(null);
+        let backpackData = new Array(27).fill(null);
+
+        hotbarData[0] = { id: ITEMS.SWORD_WOOD.id, count: 1 };
+        hotbarData[1] = { id: ITEMS.DIRT.id, count: 64 };
+        hotbarData[2] = { id: ITEMS.WOOD.id, count: 32 };
+        hotbarData[3] = { id: ITEMS.TORCH.id, count: 16 };
+        hotbarData[4] = { id: ITEMS.APPLE.id, count: 4 };
+
+        backpackData[0] = { id: ITEMS.STONE.id, count: 32 };
+        backpackData[1] = { id: ITEMS.COAL_ORE.id, count: 12 };
+        backpackData[2] = { id: ITEMS.IRON_ORE.id, count: 8 };
+        backpackData[3] = { id: ITEMS.GOLDEN_APPLE.id, count: 1 };
+
+        let selectedSlot = 0;
+        let currentPickaxeTier = 0;
+        let playerHealth = 5;
+        let playerXP = 0;
+        let dayProgress = 0.25;
+        let isGameOver = false;
+        let isInventoryOpen = false;
+        let isSaveMenuOpen = false;
+        let isSmelterOpen = false;
+
+        let spawnPoint = { x: 0, y: 15, z: 0 };
+
+        function countItemInTotal(itemId) {
+            let total = 0;
+            [...hotbarData, ...backpackData].forEach(slot => {
+                if (slot && slot.id === itemId) total += slot.count;
+            });
+            return total;
+        }
+
+        function consumeItems(itemId, amount) {
+            let remaining = amount;
+            const checkSlot = (slot) => {
+                if (remaining <= 0 || !slot || slot.id !== itemId) return;
+                if (slot.count <= remaining) {
+                    remaining -= slot.count;
+                    slot.count = 0;
+                    slot.id = null;
+                } else {
+                    slot.count -= remaining;
+                    remaining = 0;
+                }
+            };
+            hotbarData.forEach(checkSlot);
+            backpackData.forEach(checkSlot);
+            cleanEmptySlots();
+        }
+
+        function cleanEmptySlots() {
+            for (let i = 0; i < 9; i++) if (hotbarData[i] && hotbarData[i].count <= 0) hotbarData[i] = null;
+            for (let i = 0; i < 27; i++) if (backpackData[i] && backpackData[i].count <= 0) backpackData[i] = null;
+        }
+
+        function addItemToInventory(itemId, count = 1) {
+            const tryStack = (list) => {
+                for (let i = 0; i < list.length; i++) {
+                    if (list[i] && list[i].id === itemId) {
+                        list[i].count += count;
+                        return true;
+                    }
+                }
+                return false;
+            };
+
+            if (tryStack(hotbarData) || tryStack(backpackData)) return true;
+
+            for (let i = 0; i < 9; i++) {
+                if (!hotbarData[i]) { hotbarData[i] = { id: itemId, count }; return true; }
+            }
+            for (let i = 0; i < 27; i++) {
+                if (!backpackData[i]) { backpackData[i] = { id: itemId, count }; return true; }
+            }
+            return false;
+        }
+
+        // ==========================================
+        // 🌍 THREE.JS VOXEL SCENE
+        // ==========================================
+        const scene = new THREE.Scene();
+        const initialSkyColor = new THREE.Color(0x78b8ff);
+        scene.background = initialSkyColor;
+        scene.fog = new THREE.FogExp2(initialSkyColor, 0.024);
+
+        const camera = new THREE.PerspectiveCamera(78, window.innerWidth / window.innerHeight, 0.1, 800);
+        camera.rotation.order = 'YXZ';
+
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', precision: 'lowp' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(1);
+        document.body.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xfffaed, 0.9);
+        sunLight.position.set(50, 100, 50);
+        scene.add(sunLight);
+
+        const sunMesh = new THREE.Mesh(new THREE.BoxGeometry(14, 14, 2), new THREE.MeshBasicMaterial({ color: 0xfff066 }));
+        const moonMesh = new THREE.Mesh(new THREE.BoxGeometry(11, 11, 2), new THREE.MeshBasicMaterial({ color: 0xeef4ff }));
+        scene.add(sunMesh);
+        scene.add(moonMesh);
+
+        // ==========================================
+        // ⚡ INSTANCED VOXEL ENGINE
+        // ==========================================
+        const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const instancedMeshes = {};
+        const blockMap = new Map();
+        const chunkBlocks = new Map();
+        const freeSlots = {};
+        const allocatedIndices = {};
+        const dummyMatrix = new THREE.Matrix4();
+        const hiddenMatrix = new THREE.Matrix4().setPosition(0, -99999, 0);
+
+        Object.values(ITEMS).forEach(item => {
+            if (item.isBlock) {
+                const maxCapacity = item.id === ITEMS.STONE.id ? 40000 : 15000;
+                const mat = new THREE.MeshLambertMaterial({ map: item.tex });
+                const im = new THREE.InstancedMesh(boxGeo, mat, maxCapacity);
+                
+                for (let i = 0; i < maxCapacity; i++) {
+                    im.setMatrixAt(i, hiddenMatrix);
+                }
+                im.count = maxCapacity;
+                im.maxCap = maxCapacity;
+                im.blockId = item.id;
+                im.frustumCulled = false;
+                im.instanceMatrix.needsUpdate = true;
+                scene.add(im);
+
+                instancedMeshes[item.id] = im;
+                freeSlots[item.id] = [];
+                allocatedIndices[item.id] = 0;
+            }
+        });
+
+        const activeChunks = new Set();
+        const torchLights = [];
+        const CHUNK_SIZE = 16;
+        const RENDER_RADIUS = 2;
+
+        function getBlock(x, y, z) {
+            return blockMap.get(`${Math.round(x)},${Math.round(y)},${Math.round(z)}`);
+        }
+
+        function setBlock(x, y, z, itemId, chunkKey = null) {
+            const rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
+            const key = `${rx},${ry},${rz}`;
+            if (blockMap.has(key)) return;
+
+            const im = instancedMeshes[itemId];
+            if (!im) return;
+
+            let slotIdx;
+            if (freeSlots[itemId].length > 0) {
+                slotIdx = freeSlots[itemId].pop();
+            } else {
+                if (allocatedIndices[itemId] >= im.maxCap) return;
+                slotIdx = allocatedIndices[itemId]++;
+            }
+
+            dummyMatrix.setPosition(rx, ry, rz);
+            im.setMatrixAt(slotIdx, dummyMatrix);
+            im.instanceMatrix.needsUpdate = true;
+
+            const bInfo = { id: itemId, instIdx: slotIdx, x: rx, y: ry, z: rz, chunkKey };
+            blockMap.set(key, bInfo);
+
+            if (chunkKey) {
+                if (!chunkBlocks.has(chunkKey)) chunkBlocks.set(chunkKey, []);
+                chunkBlocks.get(chunkKey).push(key);
+            }
+
+            if (ITEM_BY_ID[itemId].isLight) {
+                const pLight = new THREE.PointLight(0xffaa44, 2.0, 13);
+                pLight.position.set(rx, ry + 0.5, rz);
+                scene.add(pLight);
+                torchLights.push({ key, light: pLight });
+            }
+        }
+
+        function removeBlock(x, y, z) {
+            const rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
+            const key = `${rx},${ry},${rz}`;
+            const b = blockMap.get(key);
+            if (!b) return;
+
+            const im = instancedMeshes[b.id];
+            if (im) {
+                im.setMatrixAt(b.instIdx, hiddenMatrix);
+                im.instanceMatrix.needsUpdate = true;
+                freeSlots[b.id].push(b.instIdx);
+            }
+
+            blockMap.delete(key);
+
+            const tIdx = torchLights.findIndex(t => t.key === key);
+            if (tIdx > -1) {
+                scene.remove(torchLights[tIdx].light);
+                torchLights.splice(tIdx, 1);
+            }
+        }
+
+        function unloadChunk(cx, cz) {
+            const chunkKey = `${cx},${cz}`;
+            const keys = chunkBlocks.get(chunkKey);
+            if (keys) {
+                for (let i = 0; i < keys.length; i++) {
+                    const key = keys[i];
+                    const b = blockMap.get(key);
+                    if (b) {
+                        const im = instancedMeshes[b.id];
+                        if (im) {
+                            im.setMatrixAt(b.instIdx, hiddenMatrix);
+                            im.instanceMatrix.needsUpdate = true;
+                            freeSlots[b.id].push(b.instIdx);
+                        }
+                        blockMap.delete(key);
+                    }
+                }
+                chunkBlocks.delete(chunkKey);
+            }
+            activeChunks.delete(chunkKey);
+        }
+
+        function clearEntireWorld() {
+            Object.values(instancedMeshes).forEach(im => {
+                for (let i = 0; i < im.maxCap; i++) im.setMatrixAt(i, hiddenMatrix);
+                im.instanceMatrix.needsUpdate = true;
+            });
+            Object.keys(freeSlots).forEach(k => {
+                freeSlots[k] = [];
+                allocatedIndices[k] = 0;
+            });
+            torchLights.forEach(t => scene.remove(t.light));
+            torchLights.length = 0;
+            blockMap.clear();
+            chunkBlocks.clear();
+            activeChunks.clear();
+        }
+
+        function pRand(x, z, seed = 1234) {
+            const n = Math.sin(x * 12.9898 + z * 78.233 + seed) * 43758.5453;
+            return n - Math.floor(n);
+        }
+
+        function getTerrainHeight(gx, gz) {
+            const n1 = Math.sin(gx * 0.05) * Math.cos(gz * 0.05) * 4;
+            const n2 = Math.sin(gx * 0.12 + 1.2) * Math.cos(gz * 0.12 + 0.8) * 2;
+            const continent = Math.sin(gx * 0.02) * Math.cos(gz * 0.02);
+            
+            let base = 7 + n1 + n2;
+            let biome = 'plains';
+
+            if (continent > 0.25) {
+                biome = 'mountain';
+                base += 5 + Math.sin(gx * 0.08) * 3;
+            } else if (continent < -0.25) {
+                biome = 'desert';
+                base = 5 + Math.sin(gx * 0.04) * 1.5;
+            }
+
+            return { h: Math.max(3, Math.floor(base)), biome };
+        }
+
+        function generateChunk(cx, cz) {
+            const chunkKey = `${cx},${cz}`;
+            if (activeChunks.has(chunkKey)) return;
+            activeChunks.add(chunkKey);
+
+            for (let bx = 0; bx < CHUNK_SIZE; bx++) {
+                for (let bz = 0; bz < CHUNK_SIZE; bz++) {
+                    const gx = cx * CHUNK_SIZE + bx;
+                    const gz = cz * CHUNK_SIZE + bz;
+                    const { h, biome } = getTerrainHeight(gx, gz);
+
+                    setBlock(gx, 0, gz, ITEMS.OBSIDIAN.id, chunkKey);
+
+                    for (let y = 1; y <= h - 3; y++) {
+                        const r = pRand(gx + y * 7, gz - y * 13);
+                        if (r < 0.012 && y < 4) setBlock(gx, y, gz, ITEMS.DIAMOND_ORE.id, chunkKey);
+                        else if (r < 0.025) setBlock(gx, y, gz, ITEMS.EMERALD_ORE.id, chunkKey);
+                        else if (r < 0.045) setBlock(gx, y, gz, ITEMS.GOLD_ORE.id, chunkKey);
+                        else if (r < 0.075) setBlock(gx, y, gz, ITEMS.REDSTONE_ORE.id, chunkKey);
+                        else if (r < 0.13) setBlock(gx, y, gz, ITEMS.IRON_ORE.id, chunkKey);
+                        else if (r < 0.20) setBlock(gx, y, gz, ITEMS.COAL_ORE.id, chunkKey);
+                        else setBlock(gx, y, gz, ITEMS.STONE.id, chunkKey);
+                    }
+
+                    for (let y = Math.max(1, h - 2); y < h; y++) {
+                        setBlock(gx, y, gz, biome === 'desert' ? ITEMS.SAND.id : ITEMS.DIRT.id, chunkKey);
+                    }
+
+                    if (biome === 'mountain') setBlock(gx, h, gz, ITEMS.SNOW.id, chunkKey);
+                    else if (biome === 'desert') setBlock(gx, h, gz, ITEMS.SAND.id, chunkKey);
+                    else setBlock(gx, h, gz, ITEMS.GRASS.id, chunkKey);
+
+                    if (biome === 'plains' && pRand(gx, gz, 999) < 0.015 && (gx !== 0 || gz !== 0)) {
+                        for (let th = 1; th <= 4; th++) setBlock(gx, h + th, gz, ITEMS.WOOD.id, chunkKey);
+                        for (let lx = -1; lx <= 1; lx++) {
+                            for (let lz = -1; lz <= 1; lz++) {
+                                setBlock(gx + lx, h + 4, gz + lz, ITEMS.LEAVES.id, chunkKey);
+                                setBlock(gx + lx, h + 5, gz + lz, ITEMS.LEAVES.id, chunkKey);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Spawn Initial Chunks
+        for (let x = -RENDER_RADIUS; x <= RENDER_RADIUS; x++) {
+            for (let z = -RENDER_RADIUS; z <= RENDER_RADIUS; z++) generateChunk(x, z);
+        }
+        const spawnInfo = getTerrainHeight(0, 0);
+        spawnPoint = { x: 0, y: spawnInfo.h + 3, z: 0 };
+        camera.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+
+        // ==========================================
+        // 💾 DUAL SAVING: INDEXED DB & .ABSOLUTELYCRAFTY
+        // ==========================================
+        let dbInstance = null;
+        function getDB() {
+            return new Promise((resolve, reject) => {
+                if (dbInstance) return resolve(dbInstance);
+                const req = indexedDB.open('AbsoluteCraft_SaveDB', 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains('world_saves')) {
+                        db.createObjectStore('world_saves', { keyPath: 'slot' });
+                    }
+                };
+                req.onsuccess = (e) => {
+                    dbInstance = e.target.result;
+                    resolve(dbInstance);
+                };
+                req.onerror = (e) => reject(e);
+            });
+        }
+
+        function createSaveObject() {
+            const blocksData = [];
+            blockMap.forEach(b => {
+                blocksData.push([b.x, b.y, b.z, b.id, b.chunkKey || null]);
+            });
+
+            return {
+                app: "AbsoluteCraft",
+                version: 1.1,
+                format: "absolutelycrafty",
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                player: {
+                    posX: camera.position.x,
+                    posY: camera.position.y,
+                    posZ: camera.position.z,
+                    rotX: camera.rotation.x,
+                    rotY: camera.rotation.y,
+                    health: playerHealth,
+                    xp: playerXP,
+                    tier: currentPickaxeTier,
+                    spawnPoint: spawnPoint
+                },
+                world: {
+                    dayProgress,
+                    blocks: blocksData
+                },
+                inventory: {
+                    hotbar: hotbarData,
+                    backpack: backpackData
+                }
+            };
+        }
+
+        function restoreSaveObject(saveData) {
+            try {
+                if (!saveData || !saveData.player || !saveData.world) {
+                    throw new Error("Invalid format!");
+                }
+
+                clearEntireWorld();
+
+                camera.position.set(saveData.player.posX, saveData.player.posY, saveData.player.posZ);
+                camera.rotation.set(saveData.player.rotX, saveData.player.rotY, 0);
+                playerHealth = saveData.player.health ?? 5;
+                playerXP = saveData.player.xp ?? 0;
+                currentPickaxeTier = saveData.player.tier ?? 0;
+                dayProgress = saveData.world.dayProgress ?? 0.25;
+                if (saveData.player.spawnPoint) spawnPoint = saveData.player.spawnPoint;
+
+                if (saveData.inventory) {
+                    hotbarData = saveData.inventory.hotbar || new Array(9).fill(null);
+                    backpackData = saveData.inventory.backpack || new Array(27).fill(null);
+                }
+
+                if (Array.isArray(saveData.world.blocks)) {
+                    saveData.world.blocks.forEach(([x, y, z, id, cKey]) => {
+                        setBlock(x, y, z, id, cKey);
+                    });
+                }
+
+                Sound.load();
+                updateUI();
+                toggleSaveMenu(false);
+                showAlert("World loaded successfully! 🚀");
+            } catch (err) {
+                console.error(err);
+                showAlert("Error loading world data!");
+            }
+        }
+
+        // IndexedDB Slot Operations
+        async function saveToIDBSlot(slotKey) {
+            const db = await getDB();
+            const tx = db.transaction('world_saves', 'readwrite');
+            const store = tx.objectStore('world_saves');
+            const data = createSaveObject();
+            data.slot = slotKey;
+            store.put(data);
+            tx.oncomplete = () => {
+                Sound.save();
+                showAlert(`Saved to Slot [${slotKey}]! 💾`);
+                renderSaveMenuUI();
+            };
+        }
+
+        async function loadFromIDBSlot(slotKey) {
+            const db = await getDB();
+            const tx = db.transaction('world_saves', 'readonly');
+            const store = tx.objectStore('world_saves');
+            const req = store.get(slotKey);
+            req.onsuccess = () => {
+                if (req.result) {
+                    restoreSaveObject(req.result);
+                } else {
+                    showAlert(`Slot [${slotKey}] is empty!`);
+                }
+            };
+        }
+
+        async function renderSaveMenuUI() {
+            const container = document.getElementById('idb-slots-container');
+            container.innerHTML = '';
+            const db = await getDB();
+            const tx = db.transaction('world_saves', 'readonly');
+            const store = tx.objectStore('world_saves');
+            const req = store.getAll();
+
+            req.onsuccess = () => {
+                const savedMap = {};
+                (req.result || []).forEach(r => { savedMap[r.slot] = r; });
+
+                ['Slot 1', 'Slot 2', 'Slot 3'].forEach((slotName, i) => {
+                    const key = `slot_${i+1}`;
+                    const item = savedMap[key];
+                    const div = document.createElement('div');
+                    div.className = 'slot-row';
+                    div.innerHTML = `
+                        <div>
+                            <b>${slotName}</b>
+                            <span style="font-size: 11px; color: ${item ? '#33ffaa' : '#777'}; margin-left: 8px;">
+                                ${item ? `Saved @ ${item.timestamp || 'Ready'}` : 'Empty'}
+                            </span>
+                        </div>
+                        <div class="btn-group">
+                            <button class="action-btn" style="padding: 5px 10px; background: #28a745;" onclick="saveToIDBSlot('${key}')">SAVE</button>
+                            <button class="action-btn" style="padding: 5px 10px; background: #17a2b8;" ${item ? '' : 'disabled'} onclick="loadFromIDBSlot('${key}')">LOAD</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            };
+        }
+
+        // File Save / Load (.absolutelycrafty)
+        function exportCraftyFile() {
+            const saveObj = createSaveObject();
+            const jsonStr = JSON.stringify(saveObj);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `world_${Date.now()}.absolutelycrafty`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            Sound.save();
+            showAlert("Exported .absolutelycrafty file! 💾");
+        }
+
+        function importCraftyFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    restoreSaveObject(parsed);
+                } catch(err) {
+                    showAlert("Invalid .absolutelycrafty file!");
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        function toggleSaveMenu(open) {
+            isSaveMenuOpen = open;
+            document.getElementById('save-menu-screen').style.display = open ? 'flex' : 'none';
+            if (open) {
+                if (document.pointerLockElement) document.exitPointerLock();
+                renderSaveMenuUI();
+            }
+        }
+
+        // ==========================================
+        // 🤺 MOBS
+        // ==========================================
+        const mobs = [];
+        const zombieMat = new THREE.MeshLambertMaterial({ color: 0x3d7a44 });
+        const creeperMat = new THREE.MeshLambertMaterial({ color: 0x48b02a });
+
+        function spawnMob(type = 'zombie') {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 20 + Math.random() * 10;
+            const mx = camera.position.x + Math.cos(angle) * dist;
+            const mz = camera.position.z + Math.sin(angle) * dist;
+            const my = 12;
+
+            const group = new THREE.Group();
+            const bodyMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(0.7, 1.8, 0.7),
+                type === 'zombie' ? zombieMat.clone() : creeperMat.clone()
+            );
+            group.add(bodyMesh);
+            group.position.set(mx, my, mz);
+            scene.add(group);
+
+            mobs.push({
+                type,
+                mesh: group,
+                body: bodyMesh,
+                health: type === 'zombie' ? 12 : 8,
+                velY: 0,
+                lastHit: 0,
+                fuse: 0,
+                isPriming: false
+            });
+        }
+
+        // ==========================================
+        // 🏃 PHYSICS
+        // ==========================================
+        let playerVelY = 0;
+        let canJump = false;
+        let lastChunkX = 9999, lastChunkZ = 9999;
+        const keys = {};
+
+        function checkAABB(pos, sx=0.3, sy=1.6) {
+            for (let x = -sx; x <= sx; x += sx * 2) {
+                for (let z = -sx; z <= sx; z += sx * 2) {
+                    if (getBlock(pos.x + x, pos.y - sy, pos.z + z)) return true;
+                    if (getBlock(pos.x + x, pos.y - sy * 0.5, pos.z + z)) return true;
+                }
+            }
+            return false;
+        }
+
+        // ==========================================
+        // 🎮 DRAG & DROP INVENTORY LOGIC
+        // ==========================================
+        let draggedSlotData = null;
+
+        function handleDragStart(e, source, index) {
+            const list = source === 'hotbar' ? hotbarData : backpackData;
+            if (!list[index]) { e.preventDefault(); return; }
+            draggedSlotData = { source, index };
+            e.dataTransfer.setData('text/plain', JSON.stringify({ source, index }));
+            Sound.drag();
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e, targetSource, targetIndex) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            if (!draggedSlotData) return;
+
+            const fromList = draggedSlotData.source === 'hotbar' ? hotbarData : backpackData;
+            const toList = targetSource === 'hotbar' ? hotbarData : backpackData;
+
+            const fromItem = fromList[draggedSlotData.index];
+            const toItem = toList[targetIndex];
+
+            if (toItem && fromItem && toItem.id === fromItem.id) {
+                toItem.count += fromItem.count;
+                fromList[draggedSlotData.index] = null;
+            } else {
+                toList[targetIndex] = fromItem;
+                fromList[draggedSlotData.index] = toItem;
+            }
+
+            draggedSlotData = null;
+            Sound.place();
+            updateUI();
+            renderInventoryModal();
+        }
+
+        function renderInventoryModal() {
+            const bpGrid = document.getElementById('backpack-grid');
+            const hbGrid = document.getElementById('inv-hotbar-grid');
+            bpGrid.innerHTML = '';
+            hbGrid.innerHTML = '';
+
+            const createSlotEl = (item, source, index) => {
+                const div = document.createElement('div');
+                div.className = 'slot';
+                div.draggable = !!item;
+                div.ondragstart = (e) => handleDragStart(e, source, index);
+                div.ondragover = (e) => handleDragOver(e);
+                div.ondragleave = (e) => handleDragLeave(e);
+                div.ondrop = (e) => handleDrop(e, source, index);
+
+                if (item) {
+                    const it = ITEM_BY_ID[item.id];
+                    div.style.backgroundColor = it.color || '#333';
+                    div.innerHTML = `
+                        <div class="item-icon">${it.icon || '📦'}</div>
+                        <span>${item.count > 1 ? item.count : ''}</span>
+                    `;
+                }
+                return div;
+            };
+
+            backpackData.forEach((item, i) => bpGrid.appendChild(createSlotEl(item, 'backpack', i)));
+            hotbarData.forEach((item, i) => hbGrid.appendChild(createSlotEl(item, 'hotbar', i)));
+            renderForgeRecipes();
+        }
+
+        function toggleInventory(open) {
+            isInventoryOpen = open;
+            document.getElementById('inventory-screen').style.display = open ? 'flex' : 'none';
+            if (open) {
+                if (document.pointerLockElement) document.exitPointerLock();
+                renderInventoryModal();
+            }
+        }
+
+        // ==========================================
+        // 🔥 ORE SMELTER MODAL & RECIPES
+        // ==========================================
+        const SMELT_RECIPES = [
+            {
+                name: 'Iron Ingot',
+                desc: 'Smelts raw iron ore into pure metal',
+                cost: { [ITEMS.IRON_ORE.id]: 1, [ITEMS.COAL_ORE.id]: 1 },
+                resultId: ITEMS.IRON_INGOT.id,
+                qty: 1,
+                xp: 15
+            },
+            {
+                name: 'Gold Ingot',
+                desc: 'Smelts raw gold ore into precious bullion',
+                cost: { [ITEMS.GOLD_ORE.id]: 1, [ITEMS.COAL_ORE.id]: 1 },
+                resultId: ITEMS.GOLD_INGOT.id,
+                qty: 1,
+                xp: 25
+            },
+            {
+                name: 'Glass Block (2x)',
+                desc: 'Melts sand crystals into clear glass',
+                cost: { [ITEMS.SAND.id]: 2, [ITEMS.COAL_ORE.id]: 1 },
+                resultId: ITEMS.GLASS.id,
+                qty: 2,
+                xp: 10
+            },
+            {
+                name: 'Red Brick (2x)',
+                desc: 'Fires clay & dirt into hardened masonry',
+                cost: { [ITEMS.DIRT.id]: 2, [ITEMS.COAL_ORE.id]: 1 },
+                resultId: ITEMS.BRICK.id,
+                qty: 2,
+                xp: 10
+            }
+        ];
+
+        function toggleSmelter(open) {
+            isSmelterOpen = open;
+            document.getElementById('smelter-screen').style.display = open ? 'flex' : 'none';
+            if (open) {
+                if (document.pointerLockElement) document.exitPointerLock();
+                renderSmelterUI();
+            }
+        }
+
+        function renderSmelterUI() {
+            const list = document.getElementById('smelter-recipe-list');
+            list.innerHTML = '';
+            SMELT_RECIPES.forEach((rec, idx) => {
+                let canSmelt = true;
+                const costStr = Object.entries(rec.cost).map(([id, amount]) => {
+                    const have = countItemInTotal(parseInt(id));
+                    if (have < amount) canSmelt = false;
+                    return `${ITEM_BY_ID[id].name}: ${have}/${amount}`;
+                }).join(', ');
+
+                const div = document.createElement('div');
+                div.className = 'recipe-item';
+                div.innerHTML = `
+                    <div class="recipe-info">
+                        <b>${rec.name}</b>
+                        <div>${rec.desc}</div>
+                        <div style="color: ${canSmelt ? '#ffaa44' : '#ff7777'}">${costStr}</div>
+                    </div>
+                    <button class="craft-btn" style="background: #e65c00; border-color: #ff9933;" ${canSmelt ? '' : 'disabled'} onclick="smeltItem(${idx})">SMELT</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.smeltItem = function(idx) {
+            const rec = SMELT_RECIPES[idx];
+            Object.entries(rec.cost).forEach(([id, amt]) => { consumeItems(parseInt(id), amt); });
+            addItemToInventory(rec.resultId, rec.qty);
+            playerXP += rec.xp;
+            Sound.smelt();
+            showAlert(`Smelted ${rec.name}! (+${rec.xp} XP)`);
+            updateUI();
+            renderSmelterUI();
+        };
+
+        // ==========================================
+        // 🛠️ FORGE RECIPES
+        // ==========================================
+        const RECIPES = [
+            {
+                result: 'Cozy Bed 🛏️',
+                id: ITEMS.BED.id,
+                qty: 1,
+                desc: 'Sleep away the night & set your spawn point!',
+                cost: { [ITEMS.PLANKS.id]: 3, [ITEMS.LEAVES.id]: 3 },
+                onCraft: () => addItemToInventory(ITEMS.BED.id, 1)
+            },
+            {
+                result: 'Ore Smelter 🔥',
+                id: ITEMS.SMELTER.id,
+                qty: 1,
+                desc: 'Smelts ores & glass with coal power',
+                cost: { [ITEMS.STONE.id]: 8 },
+                onCraft: () => addItemToInventory(ITEMS.SMELTER.id, 1)
+            },
+            {
+                result: 'Wood Planks (4x)',
+                id: ITEMS.PLANKS.id,
+                qty: 4,
+                desc: 'Refined building blocks',
+                cost: { [ITEMS.WOOD.id]: 1 },
+                onCraft: () => addItemToInventory(ITEMS.PLANKS.id, 4)
+            },
+            {
+                result: 'Wood Sticks (4x)',
+                id: ITEMS.STICK.id,
+                qty: 4,
+                desc: 'Handle material for tools',
+                cost: { [ITEMS.PLANKS.id]: 2 },
+                onCraft: () => addItemToInventory(ITEMS.STICK.id, 4)
+            },
+            {
+                result: 'Stone Pickaxe',
+                id: ITEMS.STONE.id,
+                qty: 1,
+                desc: 'Mines Iron & Coal Ore',
+                cost: { [ITEMS.WOOD.id]: 2, [ITEMS.STONE.id]: 3 },
+                onCraft: () => { currentPickaxeTier = Math.max(1, currentPickaxeTier); }
+            },
+            {
+                result: 'Iron Pickaxe',
+                id: ITEMS.IRON_ORE.id,
+                qty: 1,
+                desc: 'Mines Diamond, Emerald, Gold',
+                cost: { [ITEMS.WOOD.id]: 2, [ITEMS.IRON_INGOT.id]: 3 },
+                onCraft: () => { currentPickaxeTier = Math.max(2, currentPickaxeTier); }
+            },
+            {
+                result: 'Diamond Pickaxe',
+                id: ITEMS.DIAMOND_ORE.id,
+                qty: 1,
+                desc: 'Mines Obsidian & All minerals',
+                cost: { [ITEMS.WOOD.id]: 2, [ITEMS.DIAMOND_ORE.id]: 3 },
+                onCraft: () => { currentPickaxeTier = 3; }
+            },
+            {
+                result: 'Iron Sword (+6 Dmg)',
+                id: ITEMS.SWORD_IRON.id,
+                qty: 1,
+                desc: 'Sharp iron sword',
+                cost: { [ITEMS.WOOD.id]: 1, [ITEMS.IRON_INGOT.id]: 2 },
+                onCraft: () => addItemToInventory(ITEMS.SWORD_IRON.id, 1)
+            },
+            {
+                result: 'Diamond Sword (+12 Dmg)',
+                id: ITEMS.SWORD_DIAMOND.id,
+                qty: 1,
+                desc: 'Supreme razor blade',
+                cost: { [ITEMS.WOOD.id]: 1, [ITEMS.DIAMOND_ORE.id]: 2 },
+                onCraft: () => addItemToInventory(ITEMS.SWORD_DIAMOND.id, 1)
+            },
+            {
+                result: 'Emerald Blade (+15 Dmg)',
+                id: ITEMS.SWORD_EMERALD.id,
+                qty: 1,
+                desc: 'Mythic forged saber',
+                cost: { [ITEMS.DIAMOND_ORE.id]: 1, [ITEMS.EMERALD_ORE.id]: 2 },
+                onCraft: () => addItemToInventory(ITEMS.SWORD_EMERALD.id, 1)
+            },
+            {
+                result: 'Golden Apple',
+                id: ITEMS.GOLDEN_APPLE.id,
+                qty: 1,
+                desc: 'Full 5-heart max recovery',
+                cost: { [ITEMS.APPLE.id]: 1, [ITEMS.GOLD_INGOT.id]: 4 },
+                onCraft: () => addItemToInventory(ITEMS.GOLDEN_APPLE.id, 1)
+            },
+            {
+                result: '4x Torches',
+                id: ITEMS.TORCH.id,
+                qty: 4,
+                desc: 'Bright lights for caves & nights',
+                cost: { [ITEMS.WOOD.id]: 1, [ITEMS.COAL_ORE.id]: 1 },
+                onCraft: () => addItemToInventory(ITEMS.TORCH.id, 4)
+            }
+        ];
+
+        function renderForgeRecipes() {
+            const list = document.getElementById('recipe-list');
+            list.innerHTML = '';
+            RECIPES.forEach((rec, idx) => {
+                let canAfford = true;
+                const costStr = Object.entries(rec.cost).map(([id, amount]) => {
+                    const have = countItemInTotal(parseInt(id));
+                    if (have < amount) canAfford = false;
+                    return `${ITEM_BY_ID[id].name}: ${have}/${amount}`;
+                }).join(', ');
+
+                const div = document.createElement('div');
+                div.className = 'recipe-item';
+                div.innerHTML = `
+                    <div class="recipe-info">
+                        <b>${rec.result}</b>
+                        <div>${rec.desc}</div>
+                        <div style="color: ${canAfford ? '#66ff88' : '#ff7777'}">${costStr}</div>
+                    </div>
+                    <button class="craft-btn" ${canAfford ? '' : 'disabled'} onclick="craftItem(${idx})">CRAFT</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        window.craftItem = function(idx) {
+            const rec = RECIPES[idx];
+            Object.entries(rec.cost).forEach(([id, amt]) => { consumeItems(parseInt(id), amt); });
+            rec.onCraft();
+            Sound.craft();
+            showAlert(`Crafted ${rec.result}!`);
+            updateUI();
+            renderInventoryModal();
+        };
+
+        // ==========================================
+        // 🎮 USER CONTROLS, MINING & INTERACTIONS
+        // ==========================================
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            if (e.code === 'KeyE' || e.code === 'KeyI') {
+                if (!isGameOver && !isSaveMenuOpen && !isSmelterOpen) toggleInventory(!isInventoryOpen);
+            }
+            if (e.code === 'KeyM') {
+                if (!isGameOver && !isInventoryOpen && !isSmelterOpen) toggleSaveMenu(!isSaveMenuOpen);
+            }
+            if (e.code === 'Escape') {
+                if (isInventoryOpen) toggleInventory(false);
+                if (isSaveMenuOpen) toggleSaveMenu(false);
+                if (isSmelterOpen) toggleSmelter(false);
+            }
+            if (e.key >= '1' && e.key <= '9') {
+                selectedSlot = parseInt(e.key) - 1;
+                Sound.tone(550, 0.02, 'sine', 0.1);
+                updateUI();
+            }
+        });
+
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        document.addEventListener('mousemove', e => {
+            if (document.pointerLockElement === document.body && !isInventoryOpen && !isSaveMenuOpen && !isSmelterOpen && !isGameOver) {
+                camera.rotation.y -= e.movementX * 0.0026;
+                camera.rotation.x -= e.movementY * 0.0026;
+                camera.rotation.x = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, camera.rotation.x));
+            }
+        });
+
+        document.addEventListener('mousedown', e => {
+            if (isInventoryOpen || isSaveMenuOpen || isSmelterOpen || isGameOver) return;
+            if (document.pointerLockElement !== document.body) {
+                document.body.requestPointerLock();
+                getAudio();
+                return;
+            }
+
+            const slotItem = hotbarData[selectedSlot];
+            const heldItem = slotItem ? ITEM_BY_ID[slotItem.id] : null;
+
+            // Attack Check
+            if (e.button === 0) {
+                Sound.swing();
+                const ray = new THREE.Raycaster();
+                ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+                const mobMeshes = mobs.map(m => m.mesh.children[0]);
+                const mobHits = ray.intersectObjects(mobMeshes);
+
+                if (mobHits.length > 0 && mobHits[0].distance < 4.5) {
+                    const hitObj = mobHits[0].object;
+                    const mob = mobs.find(m => m.mesh.children[0] === hitObj);
+                    if (mob && Date.now() - mob.lastHit > 200) {
+                        mob.lastHit = Date.now();
+                        let dmg = heldItem && heldItem.isWeapon ? heldItem.dmg : (currentPickaxeTier + 2);
+                        mob.health -= dmg;
+                        Sound.hit();
+
+                        const kDir = mob.mesh.position.clone().sub(camera.position).normalize();
+                        mob.mesh.position.add(kDir.multiplyScalar(0.9));
+
+                        mob.body.material.color.setHex(0xff0000);
+                        setTimeout(() => {
+                            if (mob.body) mob.body.material.color.setHex(mob.type === 'zombie' ? 0x3d7a44 : 0x48b02a);
+                        }, 100);
+
+                        if (mob.health <= 0) {
+                            scene.remove(mob.mesh);
+                            mobs.splice(mobs.indexOf(mob), 1);
+                            playerXP += 25;
+                            Sound.levelup();
+                            showAlert(`Defeated ${mob.type.toUpperCase()}! (+25 XP)`);
+                            
+                            if (Math.random() < 0.5) addItemToInventory(ITEMS.APPLE.id, 1);
+                            updateUI();
+                        }
+                        return;
+                    }
+                }
+            }
+
+            // Mine & Place Raycast
+            const ray = new THREE.Raycaster();
+            ray.setFromCamera(new THREE.Vector2(0, 0), camera);
+            const activeMeshes = Object.values(instancedMeshes);
+            const blockHits = ray.intersectObjects(activeMeshes);
+
+            if (blockHits.length > 0 && blockHits[0].distance < 6.0) {
+                const hit = blockHits[0];
+                const hitMatrix = new THREE.Matrix4();
+                hit.object.getMatrixAt(hit.instanceId, hitMatrix);
+                const blockPos = new THREE.Vector3().setFromMatrixPosition(hitMatrix);
+
+                if (blockPos.y < -5000) return;
+
+                const bData = ITEM_BY_ID[hit.object.blockId];
+
+                // Right click block interaction (Bed sleeping & Smelter station)
+                if (e.button === 2) {
+                    // Check Bed Interaction
+                    if (bData.isBed) {
+                        const sunAngle = (dayProgress - 0.25) * Math.PI * 2;
+                        const sunElevation = -Math.sin(sunAngle);
+                        const isDay = sunElevation > 0.0;
+
+                        if (!isDay) {
+                            dayProgress = 0.25; // Advance straight to bright morning
+                            spawnPoint = { x: blockPos.x, y: blockPos.y + 1.2, z: blockPos.z };
+                            Sound.sleep();
+                            showAlert("Slept soundly until morning! ☀️ Spawn set!");
+                            // Burn away nearby zombies
+                            mobs.forEach(m => {
+                                if (m.type === 'zombie') m.health = 0;
+                            });
+                        } else {
+                            showAlert("You can only sleep at night! ☀️");
+                            Sound.tone(200, 0.08, 'sawtooth', 0.15);
+                        }
+                        return;
+                    }
+
+                    // Check Smelter Interaction
+                    if (bData.isSmelter) {
+                        toggleSmelter(true);
+                        return;
+                    }
+                }
+
+                if (e.button === 0) { // Mine Block
+                    const maxMineTier = TOOL_TIERS[currentPickaxeTier].maxMineTier;
+                    const neededTier = bData.minTier || 0;
+
+                    if (neededTier <= maxMineTier) {
+                        addItemToInventory(bData.id, 1);
+                        removeBlock(blockPos.x, blockPos.y, blockPos.z);
+                        Sound.mine();
+                        updateUI();
+                    } else {
+                        showAlert(`Need higher tier pickaxe for ${bData.name}!`);
+                        Sound.tone(80, 0.15, 'sawtooth', 0.2);
+                    }
+                } else if (e.button === 2) { // Place / Eat
+                    if (heldItem && heldItem.isFood) {
+                        if (playerHealth < 5) {
+                            slotItem.count--;
+                            cleanEmptySlots();
+                            playerHealth = Math.min(5, playerHealth + heldItem.heal);
+                            Sound.craft();
+                            showAlert(`Ate ${heldItem.name}! Health restored!`);
+                            updateUI();
+                        }
+                    } else if (heldItem && heldItem.isBlock) {
+                        const np = blockPos.clone().add(hit.face.normal);
+                        if (np.distanceTo(camera.position) > 0.8) {
+                            const pcx = Math.floor(np.x / CHUNK_SIZE);
+                            const pcz = Math.floor(np.z / CHUNK_SIZE);
+                            setBlock(np.x, np.y, np.z, heldItem.id, `${pcx},${pcz}`);
+                            slotItem.count--;
+                            cleanEmptySlots();
+                            Sound.place();
+                            updateUI();
+                        }
+                    }
+                }
+            }
+        });
+
+        window.addEventListener('contextmenu', e => e.preventDefault());
+
+        // ==========================================
+        // 📊 HUD & UI
+        // ==========================================
+        let alertTimer;
+        function showAlert(msg) {
+            const el = document.getElementById('alert-box');
+            el.innerText = msg;
+            el.style.display = 'block';
+            clearTimeout(alertTimer);
+            alertTimer = setTimeout(() => { el.style.display = 'none'; }, 2200);
+        }
+
+        function updateUI() {
+            document.getElementById('health-bar').innerText = '♥'.repeat(Math.max(0, Math.floor(playerHealth)));
+            document.getElementById('status-text').innerText = `Pickaxe: ${TOOL_TIERS[currentPickaxeTier].name}`;
+            document.getElementById('xp-bar-fill').style.width = `${Math.min(100, (playerXP % 100))}%`;
+            document.getElementById('pos-info').innerText = `X: ${Math.round(camera.position.x)} Y: ${Math.round(camera.position.y)} Z: ${Math.round(camera.position.z)}`;
+
+            const bar = document.getElementById('hotbar');
+            bar.innerHTML = '';
+            hotbarData.forEach((slot, i) => {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = `slot ${i === selectedSlot ? 'selected' : ''}`;
+                if (slot) {
+                    const item = ITEM_BY_ID[slot.id];
+                    slotDiv.style.backgroundColor = item.color || '#333';
+                    slotDiv.innerHTML = `
+                        <span class="key-num">${i + 1}</span>
+                        <div class="item-icon">${item.icon || '📦'}</div>
+                        <span class="item-label">${item.name}</span>
+                        ${slot.count > 1 ? `<span>${slot.count}</span>` : ''}
+                    `;
+                } else {
+                    slotDiv.innerHTML = `<span class="key-num">${i + 1}</span>`;
+                }
+                bar.appendChild(slotDiv);
+            });
+        }
+
+        window.respawnPlayer = function(e) {
+            if (e) e.stopPropagation();
+            mobs.forEach(m => scene.remove(m.mesh));
+            mobs.length = 0;
+            playerHealth = 5;
+            isGameOver = false;
+            playerVelY = 0;
+            camera.position.set(spawnPoint.x, spawnPoint.y, spawnPoint.z);
+            document.getElementById('game-over').style.display = 'none';
+            updateUI();
+            showAlert("Respawned safely! 🏃");
+        };
+
+        // ==========================================
+        // 🔄 LONGER DAY CYCLE SYSTEM
+        // ==========================================
+        let lastZombieGroan = 0;
+
+        const DAY_COLOR = new THREE.Color(0x78b8ff);
+        const SUNSET_COLOR = new THREE.Color(0xf27d42);
+        const NIGHT_COLOR = new THREE.Color(0x060a17);
+        const SUN_LIGHT_COLOR = new THREE.Color(0xfffaed);
+        const MOON_LIGHT_COLOR = new THREE.Color(0x88aaff);
+
+        function updateDayNightCycle() {
+            const sunAngle = (dayProgress - 0.25) * Math.PI * 2;
+            const sunElevation = -Math.sin(sunAngle);
+            const isDay = sunElevation > 0.0;
+
+            // Slower daytime rate for long, relaxed days!
+            const currentSpeed = isDay ? 0.000035 : 0.00028;
+            dayProgress = (dayProgress + currentSpeed) % 1.0;
+
+            const totalHours = (dayProgress * 24) % 24;
+            const hours = Math.floor(totalHours);
+            const minutes = Math.floor((totalHours - hours) * 60);
+            const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+
+            const currentSky = new THREE.Color();
+            if (sunElevation > 0.2) {
+                currentSky.copy(DAY_COLOR);
+            } else if (sunElevation > -0.15) {
+                const t = (sunElevation - (-0.15)) / 0.35;
+                currentSky.copy(NIGHT_COLOR).lerp(SUNSET_COLOR, 1 - Math.abs(t - 0.5) * 2).lerp(DAY_COLOR, t);
+            } else {
+                currentSky.copy(NIGHT_COLOR);
+            }
+
+            scene.background.lerp(currentSky, 0.08);
+            scene.fog.color.lerp(currentSky, 0.08);
+
+            const orbitDist = 160;
+            const cx = camera.position.x;
+            const cy = camera.position.y;
+            const cz = camera.position.z;
+
+            sunMesh.position.set(
+                cx + Math.cos(sunAngle) * orbitDist,
+                cy + (-Math.sin(sunAngle)) * orbitDist,
+                cz + Math.sin(sunAngle * 0.5) * 20
+            );
+            sunMesh.lookAt(cx, cy, cz);
+
+            moonMesh.position.set(
+                cx - Math.cos(sunAngle) * orbitDist,
+                cy - (-Math.sin(sunAngle)) * orbitDist,
+                cz - Math.sin(sunAngle * 0.5) * 20
+            );
+            moonMesh.lookAt(cx, cy, cz);
+
+            if (isDay) {
+                sunLight.position.copy(sunMesh.position);
+                sunLight.color.copy(SUN_LIGHT_COLOR);
+                sunLight.intensity = Math.max(0.1, sunElevation * 0.9);
+                ambientLight.intensity = Math.max(0.12, 0.2 + sunElevation * 0.35);
+            } else {
+                sunLight.position.copy(moonMesh.position);
+                sunLight.color.copy(MOON_LIGHT_COLOR);
+                sunLight.intensity = Math.max(0.04, -sunElevation * 0.25);
+                ambientLight.intensity = 0.08;
+            }
+
+            const timeIcon = isDay ? (sunElevation > 0.6 ? '☀️' : '🌅') : '🌙';
+            const phaseLabel = isDay ? 'Day (Long)' : 'Night (Sleep in Bed!)';
+            document.getElementById('time-info').innerText = `${timeIcon} ${formattedTime} (${phaseLabel})`;
+
+            return { isDay, sunElevation };
+        }
+
+        // ==========================================
+        // 🔄 MAIN GAME LOOP
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (isGameOver) {
+                renderer.render(scene, camera);
+                return;
+            }
+
+            const { isDay, sunElevation } = updateDayNightCycle();
+
+            // Player Movement
+            if (document.pointerLockElement === document.body && !isInventoryOpen && !isSaveMenuOpen && !isSmelterOpen) {
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                forward.y = 0; forward.normalize();
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                right.y = 0; right.normalize();
+
+                const wishDir = new THREE.Vector3();
+                if (keys['KeyW']) wishDir.add(forward);
+                if (keys['KeyS']) wishDir.sub(forward);
+                if (keys['KeyA']) wishDir.sub(right);
+                if (keys['KeyD']) wishDir.add(right);
+                wishDir.normalize().multiplyScalar(0.24);
+
+                const nextX = camera.position.clone().add(new THREE.Vector3(wishDir.x, 0, 0));
+                if (!checkAABB(nextX)) camera.position.x = nextX.x;
+
+                const nextZ = camera.position.clone().add(new THREE.Vector3(0, 0, wishDir.z));
+                if (!checkAABB(nextZ)) camera.position.z = nextZ.z;
+
+                if (keys['Space'] && canJump) {
+                    playerVelY = 0.22;
+                    canJump = false;
+                }
+
+                playerVelY -= 0.012;
+                const nextY = camera.position.clone().add(new THREE.Vector3(0, playerVelY, 0));
+                if (checkAABB(nextY)) {
+                    if (playerVelY < 0) canJump = true;
+                    playerVelY = 0;
+                } else {
+                    camera.position.y += playerVelY;
+                    canJump = false;
+                }
+
+                // Chunk streaming
+                const pcx = Math.floor(camera.position.x / CHUNK_SIZE);
+                const pcz = Math.floor(camera.position.z / CHUNK_SIZE);
+                if (pcx !== lastChunkX || pcz !== lastChunkZ) {
+                    lastChunkX = pcx;
+                    lastChunkZ = pcz;
+
+                    for (let x = -RENDER_RADIUS; x <= RENDER_RADIUS; x++) {
+                        for (let z = -RENDER_RADIUS; z <= RENDER_RADIUS; z++) {
+                            generateChunk(pcx + x, pcz + z);
+                        }
+                    }
+
+                    activeChunks.forEach(chunkKey => {
+                        const [cx, cz] = chunkKey.split(',').map(Number);
+                        if (Math.abs(cx - pcx) > RENDER_RADIUS + 1 || Math.abs(cz - pcz) > RENDER_RADIUS + 1) {
+                            unloadChunk(cx, cz);
+                        }
+                    });
+                }
+            }
+
+            // Mobs AI
+            for (let i = mobs.length - 1; i >= 0; i--) {
+                const mob = mobs[i];
+
+                mob.velY -= 0.012;
+                const mNextY = mob.mesh.position.clone().add(new THREE.Vector3(0, mob.velY, 0));
+                if (checkAABB(mNextY, 0.35, 1.8)) {
+                    mob.velY = 0;
+                } else {
+                    mob.mesh.position.y += mob.velY;
+                }
+
+                const distSq = wasmModule.distSq(
+                    mob.mesh.position.x, mob.mesh.position.y, mob.mesh.position.z,
+                    camera.position.x, camera.position.y, camera.position.z
+                );
+                const dist = Math.sqrt(distSq);
+
+                const diff = camera.position.clone().sub(mob.mesh.position);
+                diff.y = 0;
+
+                if (mob.type === 'zombie') {
+                    if (isDay && sunElevation > 0.25) {
+                        mob.health -= 0.05;
+                        mob.body.material.color.setHex(0xff7722);
+                        if (Math.random() < 0.1) Sound.zombieBurn();
+
+                        if (mob.health <= 0) {
+                            scene.remove(mob.mesh);
+                            mobs.splice(i, 1);
+                            playerXP += 10;
+                            updateUI();
+                            continue;
+                        }
+                    }
+
+                    if (dist < 20) {
+                        diff.normalize().multiplyScalar(0.065);
+                        if (!checkAABB(mob.mesh.position.clone().add(diff), 0.35, 1.8)) {
+                            mob.mesh.position.add(diff);
+                        }
+                    }
+                    if (dist < 1.4) {
+                        playerHealth -= 0.025;
+                        Sound.hurt();
+                        updateUI();
+                    }
+                    if (Date.now() - lastZombieGroan > 4000 && dist < 14) {
+                        Sound.zombie();
+                        lastZombieGroan = Date.now();
+                    }
+                }
+
+                if (mob.type === 'creeper') {
+                    if (dist < 3.5) {
+                        mob.isPriming = true;
+                        mob.fuse++;
+                        if (mob.fuse % 7 === 0) Sound.fuse();
+                        mob.body.material.color.setHex(mob.fuse % 8 < 4 ? 0xffffff : 0xff0000);
+
+                        if (mob.fuse > 55) {
+                            Sound.explode();
+                            if (dist < 5.0) {
+                                playerHealth -= 2.5;
+                                Sound.hurt();
+                            }
+                            scene.remove(mob.mesh);
+                            mobs.splice(i, 1);
+                            updateUI();
+                            continue;
+                        }
+                    } else {
+                        mob.isPriming = false;
+                        mob.fuse = 0;
+                        mob.body.material.color.setHex(0x48b02a);
+                        if (dist < 18) {
+                            diff.normalize().multiplyScalar(0.075);
+                            if (!checkAABB(mob.mesh.position.clone().add(diff), 0.35, 1.8)) {
+                                mob.mesh.position.add(diff);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!isDay && mobs.length < 8 && Math.random() < 0.025) {
+                spawnMob(Math.random() < 0.5 ? 'zombie' : 'creeper');
+            }
+
+            if (playerHealth <= 0 && !isGameOver) {
+                isGameOver = true;
+                Sound.gameOver();
+                document.getElementById('game-over').style.display = 'flex';
+                if (document.pointerLockElement) document.exitPointerLock();
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        updateUI();
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
