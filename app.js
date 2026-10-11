@@ -1,6 +1,5 @@
 const repoOwner = 'Poog-The-Pig97';
 const repoName = 'ultra-launcher-eaglercraft';
-const repoUrl = `https://github.com/${repoOwner}/${repoName}`;
 const pagesUrl = `https://${repoOwner.toLowerCase()}.github.io/${repoName}`;
 
 const container = document.getElementById('versionContainer');
@@ -22,22 +21,19 @@ function formatBytes(bytes) {
 
 function classifyName(name) {
   const lower = name.toLowerCase();
-  
-  // Eaglercraft — more comprehensive pattern
-  if (/eaglercraft|eaglerforge|eagly|dragonx|zeus|wurstx|infdev|astra|pixel|resent|gx-client|beta/.test(lower)) {
-    return 'Eaglercraft';
-  }
-  
-  // AbsoluteCraft
+
   if (/^ac-|absolutecraft/.test(lower)) {
     return 'AbsoluteCraft';
   }
-  
-  // WolfyCraft
+
   if (/wolfy|minceraft/.test(lower)) {
     return 'WolfyCraft';
   }
-  
+
+  if (/eaglercraft|eaglerforge|eagly|dragonx|zeus|wurstx|infdev|astra|pixel|resent|gx-client|beta|forge|client/.test(lower)) {
+    return 'Eaglercraft';
+  }
+
   return 'Custom';
 }
 
