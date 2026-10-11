@@ -1,0 +1,23 @@
+{
+  "name": "ultra-launcher-eaglercraft",
+  "version": "1.0.0",
+  "description": "Ultra launcher for Eaglercraft and custom Minecraft clone pages",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "eaglercraft",
+    "minecraft",
+    "launcher",
+    "browser-game"
+  ],
+  "author": "Poog-The-Pig97",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}

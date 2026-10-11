@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ultra Launcher</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-row">
+          <div class="brand-mark">⚡</div>
+          <div>
+            <div class="eyebrow">Minecraft Browser</div>
+            <h1>Ultra Launcher</h1>
+          </div>
+        </div>
+
+        <button class="primary" id="refreshVersions">🔄 Refresh</button>
+        <button class="secondary" id="selectFolder">📁 Select Folder</button>
+        <button class="secondary" id="openFolder">📂 Open Folder</button>
+
+        <div class="sidebar-section">
+          <p class="section-label">Version Path</p>
+          <p id="versionsPath" class="muted">Loading...</p>
+        </div>
+
+        <div class="sidebar-section">
+          <p class="section-label">Stats</p>
+          <div id="versionStats" class="stats-grid">
+            <div class="stat-item">
+              <span id="totalCount" class="stat-value">0</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat-item">
+              <span id="eaglercraftCount" class="stat-value">0</span>
+              <span class="stat-label">Eaglercraft</span>
+            </div>
+            <div class="stat-item">
+              <span id="absolutecraftCount" class="stat-value">0</span>
+              <span class="stat-label">AbsoluteCraft</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Ready to play</p>
+            <h2>Available Versions</h2>
+          </div>
+          <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search versions..." />
+          </div>
+        </header>
+
+        <div id="versionContainer" class="version-container"></div>
+      </main>
+    </div>
+
+    <template id="versionGroupTemplate">
+      <section class="version-group">
+        <h3 class="group-title"></h3>
+        <div class="version-grid"></div>
+      </section>
+    </template>
+
+    <template id="versionCardTemplate">
+      <article class="version-card">
+        <div class="version-header">
+          <div class="game-icon">🎮</div>
+          <div class="version-info">
+            <h3 class="version-name"></h3>
+            <p class="version-file"></p>
+          </div>
+        </div>
+        <div class="version-meta">
+          <span class="tag"></span>
+          <span class="size"></span>
+        </div>
+        <button class="launch-btn">▶ Launch</button>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
