@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ultra Launcher | Eaglercraft Versions</title>
+    <meta name="description" content="Browse and launch Eaglercraft, AbsoluteCraft, WolfyCraft, and custom Minecraft HTML versions." />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="brand-mark">⚡</div>
+          <div>
+            <p class="eyebrow">Minecraft Browser Collection</p>
+            <h1>Ultra Launcher</h1>
+          </div>
+        </div>
+        <div class="status-pill" id="statusPill">Loading versions...</div>
+      </header>
+
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Custom launcher archive</p>
+          <h2>Play all your Eaglercraft and custom browser versions</h2>
+        </div>
+        <div class="search-wrap">
+          <input id="searchInput" type="search" placeholder="Search versions..." aria-label="Search versions" />
+        </div>
+      </section>
+
+      <main>
+        <div id="versionContainer" class="version-container"></div>
+      </main>
+    </div>
+
+    <template id="versionGroupTemplate">
+      <section class="group-block">
+        <div class="group-header">
+          <h3 class="group-title"></h3>
+          <span class="group-count"></span>
+        </div>
+        <div class="version-grid"></div>
+      </section>
+    </template>
+
+    <template id="versionCardTemplate">
+      <article class="version-card">
+        <div class="version-header">
+          <div class="game-icon">🎮</div>
+          <div class="version-meta-text">
+            <h4 class="version-name"></h4>
+            <p class="version-file"></p>
+          </div>
+        </div>
+
+        <div class="version-footer">
+          <span class="tag"></span>
+          <span class="size"></span>
+        </div>
+
+        <a class="launch-button" target="_blank" rel="noopener noreferrer">Launch</a>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
